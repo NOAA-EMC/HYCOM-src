@@ -130,11 +130,12 @@ MODEL_FILES  := $(MODEL_LIB) $(MODEL_MODS)
 CAP_DIR       := $(abspath $(DIR))
 CAP_LIB       := libhycom_nuopc.a
 CAP_MK        := hycom.mk
-CAP_DEP_FRONT := hycom_nuopc
+CAP_DEP_FRONT := HYCOM_Mod
 CAP_VERS      := VERSION
 
 CAP_OBJS      := HYCOM_OceanComp.o
 CAP_OBJS      += hycom_couple.o
+CAP_OBJS      += ReadHycomLatLon.o
 CAP_OBJS      += read_impexp_config_mod.o
 CAP_OBJS      += impexpField_cdf_mod.o
 CAP_OBJS      += export_from_hycom_tiled.o
@@ -147,7 +148,6 @@ endif
 CAP_MODS      += hycom_couple.mod
 CAP_MODS      += read_impexp_config_mod.mod
 CAP_MODS      += impexpfield_cdf_mod.mod
-CAP_MODS      += export_from_hycom_tiled.mod
 
 CAP_FILES     := $(CAP_OBJS) $(CAP_MODS) $(CAP_LIB) $(CAP_VERS) $(CAP_MK)
 
@@ -197,8 +197,7 @@ hycom_mod.mod: HYCOM_OceanComp.o
 endif
 hycom_couple.mod: hycom_couple.o
 read_impexp_config_mod.mod: read_impexp_config_mod.o
-impexpField_cdf_mod.mod: impexpField_cdf_mod.o
-export_from_hycom_tiled.mod: export_from_hycom_tiled.o
+impexpfield_cdf_mod.mod: impexpField_cdf_mod.o
 
 # ###########
 # Build model

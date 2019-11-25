@@ -54,7 +54,7 @@
   SAVE
     
 ! Public member functions
-  PUBLIC OCEAN_SetServices
+  PUBLIC SetServices
 
 ! Miscellaneous
   TYPE(ESMF_VM) :: vm
@@ -111,8 +111,8 @@ CONTAINS
 
 
 #undef METHOD
-#define METHOD "OCEAN_SetServices"
-SUBROUTINE OCEAN_SetServices(model, rc)
+#define METHOD "SetServices"
+SUBROUTINE SetServices(model, rc)
 
 ! Calling parameters
   TYPE(ESMF_GridComp) :: model  
@@ -149,7 +149,7 @@ SUBROUTINE OCEAN_SetServices(model, rc)
 !   Return success
     rc = ESMF_SUCCESS
 
-END SUBROUTINE OCEAN_SetServices
+END SUBROUTINE SetServices
 
 
 !======================================================================
