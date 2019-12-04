@@ -59,7 +59,7 @@ if $nuopc; then
   if $nuopc_install; then
     mkdir -p $nuopc_install_dir
   fi
-  build_extras=${build_extras}" -DEOS_SIG0 -DEOS_7T -DESPC_COUPLE"
+  build_extras=${build_extras}" -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
 else
   build_extras=${build_extras}" -DUSE_SCOUPLER -DRELO"
 fi

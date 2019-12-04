@@ -48,59 +48,59 @@ module read_impexp_config_mod
     real                 :: fillValue   = 999999999
   end type hycom_fld_type
 
-  type(hycom_fld_type),target,dimension(21) :: fldsImp = (/&
-    hycom_fld_type("u10","10m_u_wind",&                                      !01
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("v10","10m_v_wind",&                                      !02
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("wndspd10","10m_wind_speed",&                             !03
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("airtmp","air_temperature_at_sea_level",&                 !04
+  type(hycom_fld_type),target,dimension(10) :: fldsImp = (/&
+    hycom_fld_type("u10","inst_zonal_wind_height10m",&                       !01
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("v10","inst_merid_wind_height10m",&                       !02
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("wndspd10","10m_wind_speed",&                            !03
+!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("airtmp","inst_temp_height2m",&                           !03
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("airhum","air_humidity_at_sea_level",&                    !05
-                   "kg_kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("swflxd","shortwave_radiative_flux_into_ocean_nonmed",&   !06
-                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("lwflxd","longwave_radiative_flux_into_ocean_nonmed",&    !07
-                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("prcp","precipitation_amount",&                           !08
-                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("gt","gt",&                                               !09
+    hycom_fld_type("airhum","inst_spec_humid_height2m",&                     !04
+                   "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("swflxd","mean_down_sw_flx",&                             !05
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("lwflxd","mean_down_lw_flx",&                             !06
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("prcp","mean_prec_rate",&                                 !07
+                   "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("gt","inst_temp_height_surface",&                         !08
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("mslprs","mean_sea_level_pressure_anomaly",&              !10
+    hycom_fld_type("mslprs","inst_pres_height_surface",&                     !09
                    "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sic","ice_concentration",&                               !11
-                   "-",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sitx","downward_x_stress_at_sea_ice_base",&              !12
-                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sity","downward_y_stress_at_sea_ice_base",&              !13
-                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("siqs","downward_sea_ice_basal_solar_heat_flux",&         !14
-                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sifh","downward_sea_ice_basal_heat_flux",&               !15
-                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sifs","downward_sea_ice_basal_salt_flux",&               !16
-                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sifw","downward_sea_ice_basal_water_flux",&              !17
-                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sit_sfc","ice_surface_temperature",&                     !18
-                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("siu","sea_ice_x_velocity",&                              !19
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("siv","sea_ice_y_velocity",&                              !20
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sih","sea_ice_thickness",&                               !21
-                   "m",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+    hycom_fld_type("sic","ice_fraction",&                                    !10
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+!    hycom_fld_type("sitx","downward_x_stress_at_sea_ice_base",&              !12
+!                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sity","downward_y_stress_at_sea_ice_base",&              !13
+!                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("siqs","downward_sea_ice_basal_solar_heat_flux",&         !14
+!                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sifh","downward_sea_ice_basal_heat_flux",&               !15
+!                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sifs","downward_sea_ice_basal_salt_flux",&               !16
+!                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sifw","downward_sea_ice_basal_water_flux",&              !17
+!                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sit_sfc","ice_surface_temperature",&                     !18
+!                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("siu","sea_ice_x_velocity",&                              !19
+!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("siv","sea_ice_y_velocity",&                              !20
+!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("sih","sea_ice_thickness",&                               !21
+!                   "m",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
 
-  type(hycom_fld_type),target,dimension(4) :: fldsExp = (/&
+  type(hycom_fld_type),target,dimension(1) :: fldsExp = (/&
     hycom_fld_type("sst","sea_surface_temperature",&                         !01
-                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("sss","sea_surface_salinity",&                            !02
-                   "ppt",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("ssu","sea_surface_x_velocity",&                          !03
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("ssv","sea_surface_y_velocity",&                          !04
-                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+!    hycom_fld_type("sss","sea_surface_salinity",&                            !02
+!                   "ppt",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("ssu","sea_surface_x_velocity",&                          !03
+!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+!    hycom_fld_type("ssv","sea_surface_y_velocity",&                          !04
+!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
 
 
   public read_impexp_config

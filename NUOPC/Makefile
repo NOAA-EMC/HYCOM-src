@@ -16,7 +16,7 @@ DIR    := $(dir $(MKFILE))
 # ##########################
 #ARCH=intelsse-impi-sm-relo
 #TYPE=mpi
-#CPP_EXTRAS=-DEOS_SIG0 -DEOS_7T -DESPC_COUPLE
+#CPP_EXTRAS=-DEOS_SIG2 -DEOS_17T -DESPC_COUPLE
 
 ifndef ARCH
 $(error ARCH is not set.)
