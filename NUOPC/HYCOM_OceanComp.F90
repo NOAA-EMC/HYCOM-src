@@ -66,7 +66,6 @@
   integer            :: nPets, lPet
   integer, parameter :: localDE=0
   type(ESMF_Clock)   :: intClock
-  type(ESMF_Config)  :: config
   real               :: ocean_start_dtg, ocean_end_dtg
 
 # ifdef ESPC_COUPLE
@@ -220,6 +219,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
       logical                    :: configIsPresent
       type(ESMF_Config)          :: config
       type(NUOPC_FreeFormat)     :: attrFF
+      character(len=64)          :: value
       character(ESMF_MAXSTR)     :: logMsg
 
       ! check model for config
@@ -230,6 +230,84 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
       if (configIsPresent) then
         call ESMF_GridCompGet(model, config=config, rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
+
+# ifdef ESPC_COUPLE
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="cdf_impexp_freq", attrDflt="9999", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="cpl_hour", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="cpl_min", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="cpl_sec", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="base_dtg", attrDflt="9999999999", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="hycom_arche_output", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+#if defined ESPC_OCN
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="ocn_esmf_exp_output", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="ocn_esmf_imp_output", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="ocn_impexp_file", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+#else
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="hyc_esmf_exp_output", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="hyc_esmf_imp_output", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="hyc_impexp_file", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+#endif
+#endif
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="espc_show_impexp_minmax", attrDflt=".true.", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+!       Start Time
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="ocean_start_dtg", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="start_hour", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="start_min", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="start_sec", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
+!       End Time
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="end_hour", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="end_min", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        call HYCOM_ConfigToAttribute(config, &
+          attrName="end_sec", attrDflt="0", rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+
         attrFF = NUOPC_FreeFormatCreate(config, &
           label=trim(cname)//"_attributes::", relaxedflag=.true., rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
@@ -238,296 +316,246 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
         call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
-# ifdef ESPC_COUPLE
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="cdf_impexp_freq=", default="9999", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get cdf_impexp_freq failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="cdf_impexp_freq", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="cpl_hour=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get cpl_hour failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="cpl_hour", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="cpl_min=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get cpl_min failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="cpl_min", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="cpl_sec=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get cpl_sec failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="cpl_sec", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="base_dtg=", default="9999999999", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get base_dtg failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="base_dtg", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="hycom_arche_output=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get hycom_arche_output failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="hycom_arche_output", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-#if defined ESPC_OCN
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="ocn_esmf_exp_output=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get ocn_esmf_exp_output failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="ocn_esmf_exp_output", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#else
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="hyc_esmf_exp_output=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get hyc_esmf_exp_output failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="hyc_esmf_exp_output", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#endif
-
-#if defined ESPC_OCN
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="ocn_esmf_imp_output=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get ocn_esmf_imp_output failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="ocn_esmf_imp_output", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#else
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="hyc_esmf_imp_output=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get hyc_esmf_imp_output failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="hyc_esmf_imp_output", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#endif
-
-#if defined ESPC_OCN
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="ocn_impexp_file=", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get ocn_impexp_file failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="ocn_impexp_file", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#else
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="hyc_impexp_file=", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get hyc_impexp_file failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="hyc_impexp_file", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-#endif
-#endif
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="espc_show_impexp_minmax=", default=".true.", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get espc_show_impexp_minmax failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="espc_show_impexp_minmax", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-!       HYCOM Start DTG
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="ocean_start_dtg=", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get ocean_start_dtg failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="ocean_start_dtg", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="start_hour=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get start_hour failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="start_hour", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="start_min=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get start_min failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="start_min", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="start_sec=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get start_sec failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="start_sec", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-! End time
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="end_hour=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get end_hour failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="end_hour", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="end_min=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get end_min failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="end_min", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call ESMF_ConfigGetAttribute(config, value, &
-          label="end_sec=", default="0", rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="config get end_sec failed", CONTEXT)) return
-        call ESMF_AttributeSet(model, value=value, &
-          name="end_sec", rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
       endif
 
       ! read component attributes
 # ifdef ESPC_COUPLE
 
-      call ESMF_AttributeGet(model, value=cdf_impexp_freq, &
-        name=TRIM("cdf_impexp_freq"), defaultvalue=9999, rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="cdf_impexp_freq", defaultvalue="9999", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get cdf_impexp_freq failed", CONTEXT)) return
+        msg="attribute get cdf_impexp_freq failed", CONTEXT)) return
+      cdf_impexp_freq = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
 
-      call ESMF_AttributeGet(model, value=cpl_hour, &
-        name=TRIM("cpl_hour"), defaultvalue=0, rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="cpl_hour", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get cpl_hour failed", CONTEXT)) return
-
-      call ESMF_AttributeGet(model, value=cpl_min, &
-        name=TRIM("cpl_min"), defaultvalue=0, rc=rc)
+        msg="attribute get cpl_hour failed", CONTEXT)) return
+      cpl_hour = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="cpl_min", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get cpl_min failed", CONTEXT)) return
-
-      call ESMF_AttributeGet(model, value=cpl_sec, &
-        name=TRIM("cpl_sec"), defaultvalue=0, rc=rc)
+        msg="attribute get cpl_min failed", CONTEXT)) return
+      cpl_min = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="cpl_sec", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get cpl_sec failed", CONTEXT)) return
+        msg="attribute get cpl_sec failed", CONTEXT)) return
+      cpl_sec = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
 
       cpl_time_step=(cpl_hour+cpl_min/60.+cpl_sec/3600.)
 
-      call ESMF_AttributeGet(model, value=base_dtg, &
-        name=TRIM("base_dtg"), defaultvalue='9999999999', rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="base_dtg", defaultvalue="9999999999", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get base_dtg failed", CONTEXT)) return
+        msg="attribute get base_dtg failed", CONTEXT)) return
+      base_dtg = trim(value)
 
-      call ESMF_AttributeGet(model, value=hycom_arche_output, &
-        name=TRIM("hycom_arche_output"), defaultvalue=.true., rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="hycom_arche_output", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get hycom_arche_output failed", CONTEXT)) return
-
-#if defined ESPC_OCN
-      call ESMF_AttributeGet(model, value=ocn_esmf_exp_output, &
-        name=TRIM("ocn_esmf_exp_output"), defaultvalue=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get ocn_esmf_output failed", CONTEXT)) return
-#else
-      call ESMF_AttributeGet(model, value=ocn_esmf_exp_output, &
-        name=TRIM("hyc_esmf_exp_output"), defaultvalue=.true., rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get hyc_esmf_output failed", CONTEXT)) return
-#endif
+        msg="attribute get hycom_arche_output failed", CONTEXT)) return
+      hycom_arche_output = (trim(value)==".true.")
 
 #if defined ESPC_OCN
-      call ESMF_AttributeGet(model, value=ocn_esmf_imp_output, &
-        name=TRIM("ocn_esmf_imp_output"), defaultvalue=.true., rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="ocn_esmf_exp_output", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get ocn_esmf_output failed", CONTEXT)) return
+        msg="attribute get ocn_esmf_output failed", CONTEXT)) return
+      ocn_esmf_exp_output = (trim(value)==".true.")
+      call ESMF_AttributeGet(model, value=value, &
+        name="ocn_esmf_imp_output", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get ocn_esmf_output failed", CONTEXT)) return
+      ocn_esmf_imp_output = (trim(value)==".true.")
+      call ESMF_AttributeGet(model, value=value, &
+        name="ocn_impexp_file", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get ocn_impexp_file failed", CONTEXT)) return
+      ocn_impexp_file = trim(value)
 #else
-      call ESMF_AttributeGet(model, value=ocn_esmf_imp_output, &
-        name=TRIM("hyc_esmf_imp_output"), defaultvalue=.true., rc=rc)
+      call ESMF_AttributeGet(model, value=value, &
+        name="hyc_esmf_exp_output", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get hyc_esmf_output failed", CONTEXT)) return
+        msg="attribute get hyc_esmf_output failed", CONTEXT)) return
+      ocn_esmf_exp_output = (trim(value)==".true.")
+      call ESMF_AttributeGet(model, value=value, &
+        name="hyc_esmf_imp_output", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get hyc_esmf_output failed", CONTEXT)) return
+      ocn_esmf_imp_output = (trim(value)==".true.")
+      call ESMF_AttributeGet(model, value=value, &
+        name="hyc_impexp_file", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get hyc_impexp_file failed", CONTEXT)) return
+      ocn_impexp_file = trim(value)
 #endif
-
-#if defined ESPC_OCN
-      call ESMF_AttributeGet(model, value=ocn_impexp_file, &
-        name=TRIM("ocn_impexp_file"), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get ocn_impexp_file failed", CONTEXT)) return
-#else
-      call ESMF_AttributeGet(model, value=ocn_impexp_file, &
-        name=TRIM("hyc_impexp_file"), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="config get hyc_impexp_file failed", CONTEXT)) return
-#endif
-      ocn_impexp_file=trim(ocn_impexp_file)
       if (lPet.eq.0) print *,"ocn_impexp_file=",ocn_impexp_file
 #endif
 
-     call ESMF_AttributeGet(model, value=show_minmax, &
-       name=TRIM("espc_show_impexp_minmax"), defaultvalue=.true., rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get hyc_impexp_file failed", CONTEXT)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="espc_show_impexp_minmax", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get hyc_impexp_file failed", CONTEXT)) return
+      show_minmax = (trim(value)==".true.")
 
-!    HYCOM Start DTG
-     call ESMF_AttributeGet(model, value=ocean_start_dtg, &
-       name=TRIM("ocean_start_dtg"), rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get start_dtg failed", CONTEXT)) return
+!     Start Time
+      call ESMF_AttributeGet(model, value=value, &
+        name="ocean_start_dtg", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get start_dtg failed", CONTEXT)) return
+      ocean_start_dtg = ESMF_UtilString2Real(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="start_hour", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get start_hour failed", CONTEXT)) return
+      start_hour = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="start_min", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get start_min failed", CONTEXT)) return
+      start_min = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="start_sec", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get start_sec failed", CONTEXT)) return
+      start_sec = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
 
-     call ESMF_AttributeGet(model, value=start_hour, &
-       name=TRIM("start_hour"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get start_hour failed", CONTEXT)) return
+!     End Time
+      call ESMF_AttributeGet(model, value=value, &
+        name="end_hour", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get end_hour failed", CONTEXT)) return
+      end_hour = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="end_min", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get end_min failed", CONTEXT)) return
+      end_min = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_AttributeGet(model, value=value, &
+        name="end_sec", defaultvalue="0", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get end_sec failed", CONTEXT)) return
+      end_sec = ESMF_UtilString2Int(value, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
 
-     call ESMF_AttributeGet(model, value=start_min, &
-       name=TRIM("start_min"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get start_min failed", CONTEXT)) return
+!     Log Configuration Settings
+      if (btest(verbosity,16)) then
+        call ESMF_LogWrite(trim(cname)//": Settings",ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Verbosity              = ',verbosity
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Diagnostic             = ',diagnostic
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'NetCDF ImpExp Freq     = ',cdf_impexp_freq
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Cpl Hour               = ',cpl_hour
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Cpl Min                = ',cpl_min
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Cpl Sec                = ',cpl_sec
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
+          'Base DTG               = ',base_dtg
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'HYCOM Archive Output   = ',hycom_arche_output
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'ESMF Export Output     = ',ocn_esmf_exp_output
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'ESMF Import Output     = ',ocn_esmf_imp_output
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
+          'ImpExp Fields File     = ',ocn_impexp_file
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'Show MinMax            = ',show_minmax
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,F0.1))") trim(cname)//': ', &
+          'Start DTG Since Epoch  = ',ocean_start_dtg
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Start Hour             = ',start_hour
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Start Min              = ',start_min
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'Start Sec              = ',start_sec
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'End Hour               = ',end_hour
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'End Min                = ',end_min
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'End Sec                = ',end_sec
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
 
-     call ESMF_AttributeGet(model, value=start_sec, &
-       name=TRIM("start_sec"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get start_sec failed", CONTEXT)) return
-
-! End time
-     call ESMF_AttributeGet(model, value=end_hour, &
-       name=TRIM("end_hour"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get end_hour failed", CONTEXT)) return
-
-     call ESMF_AttributeGet(model, value=end_min, &
-       name=TRIM("end_min"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get end_min failed", CONTEXT)) return
-
-     call ESMF_AttributeGet(model, value=end_sec, &
-       name=TRIM("end_sec"), defaultvalue=0, rc=rc)
-     if (ESMF_LogFoundError(rcToCheck=rc, &
-       msg="config get end_sec failed", CONTEXT)) return
+      endif
 
     end subroutine HYCOM_AttributeGet
+
+    !======================================================================
+
+    subroutine HYCOM_ConfigToAttribute(config, attrName, attrDflt, rc)
+      type(ESMF_Config),intent(inout)      :: config
+      character(len=*),intent(in)          :: attrName
+      character(len=*),intent(in),optional :: attrDflt
+      integer,intent(out)                  :: rc
+
+      ! local variables
+      character(len=64) :: value
+
+      call ESMF_ConfigGetAttribute(config, value, &
+        label=trim(attrName)//"=", default=attrDflt, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="config get "//trim(attrName)//" failed", CONTEXT)) return
+      call NUOPC_CompAttributeAdd(model, attrList=(/trim(attrName)/), rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call NUOPC_CompAttributeSet(model, value=value, &
+        name=trim(attrName), rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+
+    end subroutine HYCOM_ConfigToAttribute
 
 end subroutine InitializeP0
 
@@ -545,8 +573,8 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
     rc = ESMF_SUCCESS
 
 
-!   Get VM and Config info
-    call ESMF_GridCompGet(model,config=config, vm=vm, rc=rc)
+!   Get VM info
+    call ESMF_GridCompGet(model, vm=vm, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="GridCompGet failed", CONTEXT)) return
 
     call ESMF_VMGet(vm, petCount=nPets,localPet=lPet,rc=rc)
