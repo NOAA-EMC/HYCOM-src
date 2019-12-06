@@ -4021,7 +4021,13 @@
 ! --- print active timers.
       call xctmr1(79)   !time outside HYCOM_Run
       call xctmrp
-#endif
+!
+! --- end of the run.
+      if (mnproc.eq.1) then
+      write(nod,'(a)') 'normal stop'
+      call flush(nod)
+      endif !1st tile
+#else
 !
 ! --- end of the run.
       if (mnproc.eq.1) then
@@ -4030,6 +4036,7 @@
       endif !1st tile
       call xcstop('(normal)')  !calls xctmrp
              stop '(normal)'   !won't get here
+#endif
       end subroutine HYCOM_Final
 #endif /* USE_ESMF4:else */
 
