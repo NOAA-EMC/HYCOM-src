@@ -693,6 +693,7 @@ end subroutine InitializeP1
     real(ESMF_KIND_R8), dimension(:,:), pointer :: lon_data,lat_data,mask_data
     type(ESMF_ArraySpec) :: arraySpec2Dr
     real(kind=ESMF_KIND_R8), allocatable, dimension(:,:) :: tmp_e
+    logical :: isConnected
 
 
     integer status
@@ -939,14 +940,26 @@ end subroutine InitializeP1
     do i=1,numImpFields
 
       if (impFieldEnable(i)) then
-        if (lPet.eq.0) print *,"hycom, import field created, name=",impFieldName(i)
-
-        impField(i) = ESMF_FieldCreate(name=impFieldName(i), grid=gridIn, &
-        typekind=ESMF_TYPEKIND_RX, rc=rc)
+        isConnected = NUOPC_IsConnected(importState, &
+          fieldName=impFieldName(i),rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
-        call NUOPC_Realize(importState, field=impField(i), rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
+        if (isConnected) then
+          if (lPet.eq.0) print *,"hycom, import field created, name=",impFieldName(i)
+
+          impField(i) = ESMF_FieldCreate(name=impFieldName(i), grid=gridIn, &
+          typekind=ESMF_TYPEKIND_RX, rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+
+          call NUOPC_Realize(importState, field=impField(i), rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        else
+          if (lPet.eq.0) print *,"hycom, import field disabled, name=",impFieldName(i)
+
+          impFieldEnable(i) = .false.
+          call ESMF_StateRemove(importState,(/impFieldName(i)/), relaxedflag=.true.,rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        endif
 
       endif
     enddo
@@ -955,18 +968,28 @@ end subroutine InitializeP1
     do i=1,numExpFields
 
       if (expFieldEnable(i)) then
-        if (lPet.eq.0) print *,"hycom, export field created, name=",expFieldName(i)
-
-      ! exportable field:
-        expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
-        typekind=ESMF_TYPEKIND_RX, rc=rc)
+        isConnected = NUOPC_IsConnected(exportState, &
+          fieldName=expFieldName(i),rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
-        call NUOPC_Realize(exportState, field=expField(i), rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
+        if (isConnected) then
+          if (lPet.eq.0) print *,"hycom, export field created, name=",expFieldName(i)
 
+        ! exportable field:
+          expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
+          typekind=ESMF_TYPEKIND_RX, rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
 
-        if (lPet.eq.0) print *,"hycom, export field done creating, name=",expFieldName(i)
+          call NUOPC_Realize(exportState, field=expField(i), rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+          if (lPet.eq.0) print *,"hycom, export field done creating, name=",expFieldName(i)
+        else
+          if (lPet.eq.0) print *,"hycom, export field disabled, name=",expFieldName(i)
+
+          expFieldEnable(i) = .false.
+          call ESMF_StateRemove(exportState,(/expFieldName(i)/),relaxedflag=.true.,rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        endif
 
       endif
     enddo
