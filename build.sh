@@ -61,7 +61,7 @@ if $nuopc; then
   fi
   build_extras=${build_extras}" -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
 else
-  build_extras=${build_extras}" -DUSE_SCOUPLER -DRELO"
+  build_extras=${build_extras}" -DEOS_SIG2 -DEOS_17T"
 fi
 
 nuopc_dir=$(readlink -f $nuopc_dir)
@@ -100,7 +100,7 @@ else
   if $build; then
     make -f Makefile hycom \
       ARCH="${build_arch}" TYPE="${build_type}" \
-      CUSE_FLAG="${build_extras}"
+      CPP_EXTRAS="${build_extras}"
   fi
   if $clean; then
     make -f Makefile clean \
