@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<config_pes>
+  <grid name="oi%r1135x633">
+    <mach name="any">
+      <pes pesize="any" compset="hycom">
+        <comment>none</comment>
+        <ntasks>
+          <ntasks_atm>144</ntasks_atm>
+        </ntasks>
+      </pes>
+    </mach>
+  </grid>
+</config_pes>
