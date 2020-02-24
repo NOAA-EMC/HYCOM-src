@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<entry_id version="2.0">
+
+<!-- =========================== -->
+<!-- HYCOM -->
+<!-- =========================== -->
+
+<entry id="title1">
+  <type>char(80)</type>
+  <group>freeform</group>
+  <desc>first line for describing the simulation</desc>
+  <values>
+    <value></value>
+  </values>
+</entry>
+
+<entry id="title2">
+  <type>char(80)</type>
+  <group>freeform</group>
+  <desc>second line for describing the simulation</desc>
+  <values>
+    <value></value>
+  </values>
+</entry>
+
+<entry id="title3">
+  <type>char(80)</type>
+  <group>freeform</group>
+  <desc>third line for describing the simulation</desc>
+  <values>
+    <value></value>
+  </values>
+</entry>
+
+<entry id="title4">
+  <type>char(80)</type>
+  <group>freeform</group>
+  <desc>forth line for describing the simulation</desc>
+  <values>
+    <value></value>
+  </values>
+</entry>
+
+</entry_id>
