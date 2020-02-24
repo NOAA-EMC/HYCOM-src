@@ -89,7 +89,7 @@ def buildlib(caseroot, libroot, bldroot):
         remove_files.append("mod_OICPL.F90")
 
         # Set user defined CPP options
-        os.environ["USER_CPPDEFS"] = " -keep -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
+        os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
 
         # Create command
         makefile = os.path.join(casetools, "Makefile")
