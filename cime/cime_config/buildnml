@@ -20,11 +20,47 @@ sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
 from standard_script_setup import *
 from CIME.case import Case
 from CIME.nmlgen import NamelistGenerator
-from CIME.namelist import parse
 from CIME.buildnml import create_namelist_infile, parse_input
 from CIME.utils import expect, safe_copy, symlink_force
 
 logger = logging.getLogger(__name__)
+
+# pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+###############################################################################
+def _write_blkdat(nmlgen, out_file, groups, sorted_groups):
+###############################################################################
+    """Blkdat version of `write` assuming that a file object is input."""
+
+    #print nmlgen._definition._entry_nodes
+
+
+    if groups is None:
+        groups = self._groups.keys()
+
+    if (sorted_groups):
+        group_names = sorted(group for group in groups)
+    else:
+        group_names = groups
+
+    for group_name in group_names:
+        # allow empty group
+        if group_name in nmlgen._namelist._groups:
+            group = nmlgen._namelist._groups[group_name]
+            for name in sorted(group.keys()):
+                values = group[name]
+                print values, len(values)
+                if 'freeform_a' in group_name: # header
+                    if not values[0]:
+                        lines = ["{}".format("x"*80)]
+                    else: # other entries
+                        lines = ["{}".format(values[0])]
+                else:
+                    if len(values) > 1:
+                        for x in values:
+                            lines = ["{:>8}   '{:<8}' = {}".format(x, name, "")]                    
+                            print lines
+                    else:        
+                        lines = ["{:>8}   '{:<8}' = {}".format(values[0], name, "")]                    
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 ###############################################################################
@@ -58,6 +94,10 @@ def _create_namelist(case, confdir, config, infile, nmlgen):
 
     # Create namelist
     namelist_file = os.path.join(confdir, "ocn_in")
+
+    # Write namelist
+    #nmlgen.write_hycom_blkdat_file(namelist_file, data_list_path, groups=groups, sorted_groups=False)
+    _write_blkdat(nmlgen, namelist_file, groups=groups, sorted_groups=True)
     #nmlgen.write_output_file(namelist_file, data_list_path, groups=groups, sorted_groups=False)
 
 ###############################################################################
