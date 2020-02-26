@@ -31,9 +31,6 @@ def _write_blkdat(nmlgen, out_file, groups, sorted_groups):
 ###############################################################################
     """Blkdat version of `write` assuming that a file object is input."""
 
-    #print nmlgen._definition._entry_nodes
-
-
     if groups is None:
         groups = self._groups.keys()
 
@@ -42,25 +39,56 @@ def _write_blkdat(nmlgen, out_file, groups, sorted_groups):
     else:
         group_names = groups
 
+    # variables for checking vertical layer definition
+    nsigma = int(nmlgen.get_value("nsigma"))
+    remove_list_a = ["dp00", "dp00x", "dp00f", "ds00", "ds00x", "ds00f"]
+    remove_list_b = ["dp0k", "ds0k"]
+
+    lines = []
     for group_name in group_names:
         # allow empty group
         if group_name in nmlgen._namelist._groups:
             group = nmlgen._namelist._groups[group_name]
             for name in sorted(group.keys()):
                 values = group[name]
-                print values, len(values)
+                values = [x.strip("\"") for x in values]
+                node = nmlgen._definition.get_child("entry", {"id":name})
+                desc = nmlgen._definition.get_description(node)
+                vtyp = nmlgen._definition._get_type_info(node)
+
+                # remove specific parameters from namelist
+                if nsigma > 0:
+                    if name in remove_list_a:
+                        continue
+                else:
+                    if name in remove_list_b:
+                        continue                    
+
+                # add item to list
                 if 'freeform_a' in group_name: # header
                     if not values[0]:
-                        lines = ["{}".format("x"*80)]
-                    else: # other entries
-                        lines = ["{}".format(values[0])]
-                else:
+                        lines.append("{}".format("x"*80))
+                    else:
+                        title = ", ".join(values)
+                        if len(title) > 80:
+                            title = ",".join(values)
+                            if len(title) > 80:
+                                logger.info("The line in title section must be 80 character long! Please check following line:")
+                                logger.info(title)
+                        lines.append("{}".format(title))
+                else: # rest
                     if len(values) > 1:
+                        i = 1
                         for x in values:
-                            lines = ["{:>8}   '{:<8}' = {}".format(x, name, "")]                    
-                            print lines
+                            lines.append("{:>7}   '{:<6}' = {}".format(x, name, "layer {:>3} ".format(i)+desc))                 
+                            i = i+1
                     else:        
-                        lines = ["{:>8}   '{:<8}' = {}".format(values[0], name, "")]                    
+                        lines.append("{:>7}   '{:<6}' = {}".format(values[0], name, desc))
+
+    # Write namelist file
+    with open(out_file, 'w') as namelist:
+        for line in lines:
+            namelist.write(line+"\n")
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 ###############################################################################
@@ -96,9 +124,7 @@ def _create_namelist(case, confdir, config, infile, nmlgen):
     namelist_file = os.path.join(confdir, "ocn_in")
 
     # Write namelist
-    #nmlgen.write_hycom_blkdat_file(namelist_file, data_list_path, groups=groups, sorted_groups=False)
     _write_blkdat(nmlgen, namelist_file, groups=groups, sorted_groups=True)
-    #nmlgen.write_output_file(namelist_file, data_list_path, groups=groups, sorted_groups=False)
 
 ###############################################################################
 def buildnml(case, caseroot, compname):
