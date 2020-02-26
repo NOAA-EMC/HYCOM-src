@@ -171,6 +171,19 @@ def buildnml(case, caseroot, compname):
     # Create namelist
     _create_namelist(case, confdir, config, namelist_infile, nmlgen)
 
+    # Copy namelist files to rundir
+    if os.path.isdir(rundir):
+        file1 = os.path.join(confdir, "ocn_in")
+        file2 = os.path.join(rundir, "ocn_in")
+        logger.debug("ufsatm namelist copy: file1 %s file2 %s " %(file1, file2))
+        safe_copy(file1, file2)
+
+    # Link file
+    logger.info("\tLinking input namelist for hycom")
+    if not os.path.exists(rundir):
+        expect(False, "Couldn't find run direcory " + rundir)
+    symlink_force(file2, os.path.join(rundir, "blkdat.input"))
+
 ###############################################################################
 def _main_func():
 
