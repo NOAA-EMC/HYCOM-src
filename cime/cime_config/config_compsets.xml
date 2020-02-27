@@ -36,16 +36,22 @@
     - grid  (optional regular expression match for grid to work with the compset)
   </help>
 
-  <!-- F compsets -->
-
+  <!-- C compsets -->
+  <!-- Standalone HYCOM -->
   <compset>
-    <alias>HYCOM</alias>
+    <alias>CHYCOM_STD</alias>
     <lname>FCST_SATM_SLND_SICE_hycom_SROF_SGLC_SWAV</lname>
+  </compset>
+  <!-- HYCOM with data atmosphere (JRA re-analysis) -->
+  <compset>
+    <alias>CHYCOM_JRA</alias>
+    <lname>FCST_DATM%JRA_SLND_SICE_hycom_SROF_SGLC_SWAV</lname>
   </compset>
 
   <entries>
     <entry id="COMP_CLASSES">
 	<value compset="SATM_SLND_SICE_hycom.*_SROF_SGLC_SWAV">OCN</value>
+	<value compset="DATM%JRA_SLND_SICE_hycom.*_SROF_SGLC_SWAV">ATM,OCN</value>
     </entry>
   </entries>
 
