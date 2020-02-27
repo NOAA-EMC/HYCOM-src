@@ -83,7 +83,15 @@ def _write_blkdat(nmlgen, out_file, groups, sorted_groups):
                             lines.append("{:>7}   '{:<6}' = {}".format(x, name, "layer {:>3} ".format(i)+desc))                 
                             i = i+1
                     else:        
-                        lines.append("{:>7}   '{:<6}' = {}".format(values[0], name, desc))
+                        strlen = len(values[0])
+                        stremp = "{}".format(" "*(4-(strlen-6)))
+                        if "logical" in vtyp:
+                             lines.append("{:>7}   '{:<6}' = {}".format(0 if ".false." in values[0].strip() else 1, name, desc))
+                        else:
+                            if strlen > 6:
+                                lines.append("{:>{w1}}{w2}'{:<6}' = {}".format(values[0], name, desc, w1=strlen, w2=stremp))
+                            else:
+                                lines.append("{:>7}   '{:<6}' = {}".format(values[0], name, desc)) 
 
     # Write namelist file
     with open(out_file, 'w') as namelist:
