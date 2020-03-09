@@ -70,26 +70,39 @@ def buildlib(caseroot, libroot, bldroot):
         gmake = case.get_value("GMAKE")
         gmake_args = get_standard_makefile_args(case)
         mach = case.get_value("MACH")
+
+        # Query components, standalone vs. coupled
+        compclasses = case.get_value("COMP_CLASSES").split(",")
+        compclasses.remove("CPL")
+        ncomp = len(compclasses)
         
         # Create Filepath file
         filepath_file = os.path.join(bldroot,"Filepath")
         if not os.path.isfile(filepath_file):
             paths = [os.path.join(caseroot,"SourceMods","src.hycom"),
-                     os.path.join(srcroot,"src","model","HYCOM"),
-                     os.path.join(srcroot,"src","model","HYCOM","NUOPC")]
+                     os.path.join(srcroot,"src","model","HYCOM")]
+            if ncomp != 1:
+                paths.append(os.path.join(srcroot,"src","model","HYCOM","NUOPC"))
 
             with open(filepath_file, "w") as filepath:
                 filepath.write("\n".join(paths))
                 filepath.write("\n")
 
         # List of source files that will be removed from the Srcfiles
+        # NOTE: hycom_cice.F90 and mod_OICPL.F90 is only required to couple HYCOM with CICE
         remove_files = []
-        remove_files.append("hycom.F90")
         remove_files.append("hycom_cice.F90")
         remove_files.append("mod_OICPL.F90")
 
         # Set user defined CPP options
-        os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
+        compclasses = case.get_value("COMP_CLASSES").split(",")
+        compclasses.remove("CPL")
+        ncomp = len(compclasses)
+        if (ncomp == 1):
+            os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T"
+        else:
+            remove_files.append("hycom.F90")
+            os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
 
         # Create command
         makefile = os.path.join(casetools, "Makefile")
