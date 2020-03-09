@@ -520,7 +520,7 @@
 </entry>
 
 <entry id="hybraf">
-  <type>integer</type>
+  <type>logical</type>
   <group>freeform_b_047</group>
   <desc>HYBGEN: Robert-Asselin flag (0 F,1 T)</desc>
   <values>
