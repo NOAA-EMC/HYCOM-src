@@ -50,7 +50,7 @@
 
   <entries>
     <entry id="COMP_CLASSES">
-	<value compset="SATM_SLND_SICE_hycom.*_SROF_SGLC_SWAV">OCN</value>
+	<value compset="SATM_SLND_SICE_hycom.*_SROF_SGLC_SWAV">OCN,CPL</value>
         <value compset="DATM%JRA_SLND_SICE_hycom.*_SROF_SGLC_SWAV">ATM,OCN,CPL</value>
     </entry>
   </entries>
