@@ -10,7 +10,7 @@
 # pylint: disable=wildcard-import,unused-wildcard-import,wrong-import-position
 
 import os, sys, copy, time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 CIMEROOT = os.environ.get("CIMEROOT")
 if CIMEROOT is None:
@@ -24,6 +24,147 @@ from CIME.buildnml import create_namelist_infile, parse_input
 from CIME.utils import expect, safe_copy, symlink_force
 
 logger = logging.getLogger(__name__)
+
+def hycom_date_to_regular_date(hyctime):
+    epoc = datetime(1901, 1 ,1, 0, 0)
+    new_date = epoc+timedelta(days=hyctime-1)
+    return new_date
+
+def regular_date_to_hycom_date(regtime):
+    epoc = datetime(1901, 1 ,1, 0, 0)
+    return (regtime-epoc+timedelta(days=1)).total_seconds()/86400.0
+
+# prepares the input files of a case and places in rundir:
+def prep_input(case, nmlgen_blkdat):
+    # Query case configuration
+    Buildconf = case.get_value("CASEBUILD")
+    rundir = case.get_value("RUNDIR")
+    din_loc_root = case.get_value("DIN_LOC_ROOT")
+
+    # Create generic dictionary to hold input files: [source_file, "ln" | "cp", target_file]
+    input_files = dict()
+
+    # Grid files
+    for field in ["depth", "grid"]:
+        for suffix in ["a", "b"]:
+            f = "regional.{}.{}".format(field, suffix)
+            input_files["{}_{}".format(field, suffix)] = [os.path.join(din_loc_root,"hafs","dorian",f), "ln", f]
+
+    # Initial condition
+    input_files["restart_in_a"] = [os.path.join(din_loc_root,"hafs","dorian","restart_in.a"), "ln", "restart_in.a"]
+    input_files["restart_in_b"] = [os.path.join(din_loc_root,"hafs","dorian","restart_in.b"), "ln", "restart_in.b"]
+
+    # Initialization of spatially varying veldf2, veldf4, and thkdf4
+    for field in ["thkdf4", "veldf2", "veldf4"]:
+        for suffix in ["a", "b"]:
+            f = "{}.{}".format(field, suffix)
+            input_files["{}_{}".format(field, suffix)] = [os.path.join(din_loc_root,"hafs","dorian",f), "ln", f]
+
+    # Forcing files
+    for field in ["airtmp", "chl", "precip", "presur", "radflx", "shwflx", "surtmp", "tauewd", "taunwd", "vapmix", "wndspd"]:
+        for suffix in ["a", "b"]:
+            f = "forcing.{}.{}".format(field, suffix)
+            input_files["{}_{}".format(field, suffix)] = [os.path.join(din_loc_root,"hafs","dorian",f), "ln", f]
+
+    # Relaxation conditions
+    for field in ["ssh"]:
+        for suffix in ["a", "b"]:
+            f = "relax.{}.{}".format(field, suffix)
+            input_files["{}_{}".format(field, suffix)] = [os.path.join(din_loc_root,"hafs","dorian",f), "ln", f]
+
+    # Add nesting files
+    lbflag = int(nmlgen_blkdat.get_value("lbflag"))
+    nestfq = nmlgen_blkdat.get_value("nestfq")
+    bnstfq = nmlgen_blkdat.get_value("bnstfq")
+    if lbflag == 2:
+        # Query date and time
+        run_start_date = case.get_value('RUN_STARTDATE').split('-')
+        yyyy = int(run_start_date[0])
+        mm = int(run_start_date[1])
+        dd = int(run_start_date[2])
+
+        run_start_tod = int(case.get_value('START_TOD'))
+        hh = run_start_tod//3600
+
+        # Get HYCOM dates
+        start_date = datetime(yyyy, mm ,dd, hh, 0)
+        day1 = regular_date_to_hycom_date(start_date)
+
+        stop_option = case.get_value('STOP_OPTION')
+        stop_n = int(case.get_value('STOP_N'))
+        if 'nyears' in stop_option:
+            day2 = regular_date_to_hycom_date(start_date+timedelta(years=stop_n))
+        elif 'nmonths' in stop_option:
+            day2 = regular_date_to_hycom_date(start_date+timedelta(months=stop_n))
+        elif 'ndays' in stop_option:
+            day2 = regular_date_to_hycom_date(start_date+timedelta(days=stop_n))
+        elif 'nhours' in stop_option:
+            day2 = regular_date_to_hycom_date(start_date+timedelta(hours=stop_n))
+        elif 'nseconds' in stop_option:
+            day2 = regular_date_to_hycom_date(start_date+timedelta(seconds=stop_n))
+        elif 'nsteps' in stop_option:
+            expect(False, "STOP_OPTION = nsteps is not supported!")
+
+        stop_date = hycom_date_to_regular_date(day2)
+
+        logger.info("START DAY = {}({}) and STOP DAY = {}({})".format(start_date.strftime("%Y-%m-%d_%H:%M:%S"),
+                    day1, stop_date.strftime("%Y-%m-%d_%H:%M:%S"), day2))
+
+        # Copy nest files
+        nestdir = os.path.join(rundir,"nest")
+        if not os.path.exists(nestdir):
+            os.makedirs(nestdir)
+        nstep = 24/int(1/float(bnstfq))
+        yday1 = start_date.timetuple().tm_yday
+        yday2 = stop_date.timetuple().tm_yday
+        for yday in xrange(yday1, yday2+1):
+            for hours in xrange(nstep, 24, nstep):
+                if yday == yday2 and hours > stop_date.hour:
+                    break
+                f = "archv.{}_{}".format(yyyy,yday)+"_{0:02d}.a".format(hours)
+                input_files[f.replace(".","_")] = [os.path.join(din_loc_root,"hafs","dorian","nest",f), "ln", os.path.join(nestdir,f)]
+                f = "archv.{}_{}".format(yyyy,yday)+"_{0:02d}.b".format(hours)
+                input_files[f.replace(".","_")] = [os.path.join(din_loc_root,"hafs","dorian","nest",f), "ln", os.path.join(nestdir,f)]
+
+    # Add file for spacially varying isopycnal layer target densities
+    vsigma = nmlgen_blkdat.get_value("vsigma")
+    if vsigma:
+        input_files["iso_sigma_a"] = [os.path.join(din_loc_root,"hafs","dorian","iso.sigma.a"), "ln", "iso.sigma.a"]
+        input_files["iso_sigma_b"] = [os.path.join(din_loc_root,"hafs","dorian","iso.sigma.b"), "ln", "iso.sigma.b"]
+
+    # Add file for spacially varying shallowest depth for isopycnal layers
+    isotop = nmlgen_blkdat.get_value("isotop")
+    if isotop < 0.0:
+        input_files["iso_top_a"] = [os.path.join(din_loc_root,"hafs","dorian","iso.top.a"), "ln", "iso.top.a"]
+        input_files["iso_top_b"] = [os.path.join(din_loc_root,"hafs","dorian","iso.top.b"), "ln", "iso.top.a"]
+
+    # Add file for initialization of thermobaric reference state arrays
+    kapref = nmlgen_blkdat.get_value("kapref")
+    if kapref == -1:
+        input_files["tbaric_a"] = [os.path.join(din_loc_root,"hafs","dorian","tbaric.a"), "ln", "tbaric.a"]
+        input_files["tbaric_b"] = [os.path.join(din_loc_root,"hafs","dorian","tbaric.b"), "ln", "tbaric.b"]
+
+    # Other configuration files
+    # TODO: need to generate those files
+    input_files["hycom_settings"] = [os.path.join(din_loc_root,"hafs","dorian","hycom_settings"), "cp", "hycom_settings"]
+    input_files["limits"] = [os.path.join(din_loc_root,"hafs","dorian","limits"), "cp", "limits"]
+    input_files["patch_input"] = [os.path.join(din_loc_root,"hafs","dorian","patch.input"), "cp", "patch.input"]
+    input_files["ports_input"] = [os.path.join(din_loc_root,"hafs","dorian","ports.input"), "cp", "ports.input"]
+
+    # Write input file list
+    with open(os.path.join(Buildconf,"hycom.input_data_list"), 'w') as input_data_list:
+        for k,v in input_files.items():
+            input_data_list.write(k+" = "+v[0]+"\n")
+
+    # Copy/Link files
+    for k,v in input_files.items():
+        if not os.path.isfile(os.path.join(rundir,v[2])):
+            if not os.path.isfile(v[0]):
+                logger.warning("WARNING: data file {} not found, will attempt to download.".format(v[0]))
+            elif "ln" in v[1]:
+                symlink_force(v[0], os.path.join(rundir,v[2]))
+            elif "cp":
+                safe_copy(v[0], os.path.join(rundir,v[2]))
 
 # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 ###############################################################################
@@ -174,10 +315,10 @@ def buildnml(case, caseroot, compname):
     config = {}
 
     # Create the namelist generator object
-    nmlgen = NamelistGenerator(case, definition_file)     
+    nmlgen_blkdat = NamelistGenerator(case, definition_file)
 
     # Create namelist
-    _create_namelist(case, confdir, config, namelist_infile, nmlgen)
+    _create_namelist(case, confdir, config, namelist_infile, nmlgen_blkdat)
 
     # Copy namelist files to rundir
     if os.path.isdir(rundir):
@@ -191,6 +332,12 @@ def buildnml(case, caseroot, compname):
     if not os.path.exists(rundir):
         expect(False, "Couldn't find run direcory " + rundir)
     symlink_force(file2, os.path.join(rundir, "blkdat.input"))
+
+    #----------------------------------------------------
+    # Copy/link input files
+    #----------------------------------------------------
+
+    prep_input(case, nmlgen_blkdat)
 
 ###############################################################################
 def _main_func():
