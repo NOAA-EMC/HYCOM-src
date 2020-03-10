@@ -134,6 +134,7 @@ CAP_DEP_FRONT := HYCOM_Mod
 CAP_VERS      := VERSION
 
 CAP_OBJS      := HYCOM_OceanComp.o
+CAP_OBJS      += HYCOM_ESMF_Extensions.o
 CAP_OBJS      += hycom_couple.o
 CAP_OBJS      += ReadHycomLatLon.o
 CAP_OBJS      += read_impexp_config_mod.o
@@ -145,6 +146,7 @@ CAP_MODS      := ocean_mod.mod
 else
 CAP_MODS      := hycom_mod.mod
 endif
+CAP_MODS      += hycom_esmf_extensions.mod
 CAP_MODS      += hycom_couple.mod
 CAP_MODS      += read_impexp_config_mod.mod
 CAP_MODS      += impexpfield_cdf_mod.mod
@@ -184,6 +186,7 @@ nuopcinstall: $(CAP_LIB) $(CAP_MODS) $(CAP_VERS) \
 # ############
 
 HYCOM_OceanComp.o: export_from_hycom_tiled.o \
+ HYCOM_ESMF_Extensions.o \
  hycom_couple.o \
  read_impexp_config_mod.o \
  impexpField_cdf_mod.o
@@ -195,6 +198,7 @@ ocean_mod.mod: HYCOM_OceanComp.o
 else
 hycom_mod.mod: HYCOM_OceanComp.o
 endif
+hycom_esmf_extensions.mod: HYCOM_ESMF_Extensions.o
 hycom_couple.mod: hycom_couple.o
 read_impexp_config_mod.mod: read_impexp_config_mod.o
 impexpfield_cdf_mod.mod: impexpField_cdf_mod.o
