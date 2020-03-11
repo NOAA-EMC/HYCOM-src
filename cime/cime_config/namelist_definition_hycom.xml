@@ -970,7 +970,7 @@
 </entry>
 
 <entry id="diapyc">
-  <type>integer</type>
+  <type>real</type>
   <group>freeform_b_097</group>
   <desc>KT/PWP: diapycnal diffusivity x buoyancy freq. (m**2/s**2)</desc>
   <values>
@@ -1285,7 +1285,7 @@
 </entry>
 
 <entry id="tbvar">
-  <type>integer</type>
+  <type>real</type>
   <group>freeform_b_132</group>
   <desc>FLOATS: horizontal turb. vel. variance scale (m**2/s**2)</desc>
   <values>
@@ -1537,7 +1537,7 @@
 </entry>
 
 <entry id="prsbas">
-  <type>integer</type>
+  <type>real</type>
   <group>freeform_b_160</group>
   <desc>msl pressure is input field + prsbas (Pa)</desc>
   <values>
@@ -1657,6 +1657,197 @@
   <type>integer</type>
   <group>freeform_b_177</group>
   <desc>STOKES: number of fixed interface depths for input</desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<!-- =========================== -->
+<!-- NUOPC -->
+<!-- =========================== -->
+
+<entry id="cdf_impexp_freq">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>3</value>
+  </values>
+</entry>
+
+<entry id="cpl_hour">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="cpl_min">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="cpl_sec">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="base_dtg">
+  <type>char</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>9999999999</value>
+  </values>
+</entry>
+
+<entry id="hycom_arche_output">
+  <type>logical</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>.true.</value>
+  </values>
+</entry>
+
+<entry id="hyc_esmf_exp_output">
+  <type>logical</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>.true.</value>
+  </values>
+</entry>
+
+<entry id="hyc_esmf_imp_output">
+  <type>logical</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>.true.</value>
+  </values>
+</entry>
+
+<entry id="hyc_impexp_file">
+  <type>char</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>dummy_file</value>
+  </values>
+</entry>
+
+<entry id="espc_show_impexp_minmax">
+  <type>logical</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>.true.</value>
+  </values>
+</entry>
+
+<entry id="ocean_start_dtg">
+  <type>real</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0.0</value>
+  </values>
+</entry>
+
+<entry id="start_hour">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="start_min">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="start_sec">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="end_hour">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="end_min">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
+  <values>
+    <value>0</value>
+  </values>
+</entry>
+
+<entry id="end_sec">
+  <type>integer</type>
+  <category>esmf_config</category>
+  <group>OCN_attributes</group>
+  <desc>
+  </desc>
   <values>
     <value>0</value>
   </values>
