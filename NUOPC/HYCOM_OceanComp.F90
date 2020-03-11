@@ -31,6 +31,8 @@
 
   use NUOPC
 
+  use HYCOM_ESMF_Extensions
+
   use NUOPC_Model, only: &
     model_routine_SS    => SetServices, &
     model_label_Advance => label_Advance, &
@@ -669,6 +671,10 @@ end subroutine InitializeP1
     integer, intent(out) :: rc
 
     ! local variables
+    character(32)           :: cname
+    character(*), parameter :: rname="InitializeP2"
+    integer                 :: verbosity, diagnostic
+    character(len=64)       :: value
     type(ESMF_Grid)         :: gridIn
     type(ESMF_Grid)         :: gridOut
 
@@ -702,7 +708,25 @@ end subroutine InitializeP1
 
     rc = ESMF_SUCCESS
 
-
+    ! Query component for name, verbosity, and diagnostic values
+!    call NUOPC_CompGet(model, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+    call ESMF_GridCompGet(model, name=cname, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    call ESMF_AttributeGet(model, name="Diagnostic", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","bit16","maxplus"/), &
+      specialValueList=(/0,65535,65536,131071/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    call ESMF_AttributeGet(model, name="Verbosity", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","bit16","maxplus"/), &
+      specialValueList=(/0,65535,65536,131071/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called"
 
@@ -811,7 +835,6 @@ end subroutine InitializeP1
     if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
 
 #endif
-
 
 # ifdef ESPC_COUPLE
 
@@ -934,6 +957,13 @@ end subroutine InitializeP1
 # endif
 
     gridOut = gridIn ! for now out same as in
+
+    ! Write grid to NetCDF file.
+    if (btest(diagnostic,16)) then
+      call HYCOM_ESMF_GridWrite(gridOut, "diagnostic_"//trim(cname)//"_"// &
+        rname//"_grid.nc", rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+    endif
 
 # ifdef ESPC_COUPLE
 
