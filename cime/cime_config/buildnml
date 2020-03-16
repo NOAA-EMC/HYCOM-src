@@ -20,6 +20,7 @@ sys.path.append(os.path.join(CIMEROOT, "scripts", "Tools"))
 from standard_script_setup import *
 from CIME.case import Case
 from CIME.nmlgen import NamelistGenerator
+from CIME.namelist import Namelist, literal_to_python_value
 from CIME.buildnml import create_namelist_infile, parse_input
 from CIME.utils import expect, safe_copy, symlink_force
 
@@ -118,28 +119,30 @@ def prep_input(case, nmlgen_blkdat):
         yday1 = start_date.timetuple().tm_yday
         yday2 = stop_date.timetuple().tm_yday
         for yday in xrange(yday1, yday2+1):
-            for hours in xrange(nstep, 24, nstep):
+            for hours in xrange(0, 24, nstep):
                 if yday == yday2 and hours > stop_date.hour:
                     break
                 f = "archv.{}_{}".format(yyyy,yday)+"_{0:02d}.a".format(hours)
                 input_files[f.replace(".","_")] = [os.path.join(din_loc_root,"hafs","dorian","nest",f), "ln", os.path.join(nestdir,f)]
                 f = "archv.{}_{}".format(yyyy,yday)+"_{0:02d}.b".format(hours)
                 input_files[f.replace(".","_")] = [os.path.join(din_loc_root,"hafs","dorian","nest",f), "ln", os.path.join(nestdir,f)]
+        input_files["rmu_a"] =  [os.path.join(din_loc_root,"hafs","dorian","nest","rmu.a"), "ln", os.path.join(nestdir,"rmu.a")]
+        input_files["rmu_b"] =  [os.path.join(din_loc_root,"hafs","dorian","nest","rmu.b"), "ln", os.path.join(nestdir,"rmu.b")]
 
     # Add file for spacially varying isopycnal layer target densities
-    vsigma = nmlgen_blkdat.get_value("vsigma")
+    vsigma = literal_to_python_value(nmlgen_blkdat.get_value("vsigma"))
     if vsigma:
         input_files["iso_sigma_a"] = [os.path.join(din_loc_root,"hafs","dorian","iso.sigma.a"), "ln", "iso.sigma.a"]
         input_files["iso_sigma_b"] = [os.path.join(din_loc_root,"hafs","dorian","iso.sigma.b"), "ln", "iso.sigma.b"]
 
     # Add file for spacially varying shallowest depth for isopycnal layers
-    isotop = nmlgen_blkdat.get_value("isotop")
+    isotop = float(nmlgen_blkdat.get_value("isotop"))
     if isotop < 0.0:
         input_files["iso_top_a"] = [os.path.join(din_loc_root,"hafs","dorian","iso.top.a"), "ln", "iso.top.a"]
         input_files["iso_top_b"] = [os.path.join(din_loc_root,"hafs","dorian","iso.top.b"), "ln", "iso.top.a"]
 
     # Add file for initialization of thermobaric reference state arrays
-    kapref = nmlgen_blkdat.get_value("kapref")
+    kapref = int(nmlgen_blkdat.get_value("kapref"))
     if kapref == -1:
         input_files["tbaric_a"] = [os.path.join(din_loc_root,"hafs","dorian","tbaric.a"), "ln", "tbaric.a"]
         input_files["tbaric_b"] = [os.path.join(din_loc_root,"hafs","dorian","tbaric.b"), "ln", "tbaric.b"]
@@ -335,7 +338,7 @@ def _create_namelist_nuopc(case, confdir, config, infile, nmlgen):
     groups = ['OCN_attributes']
 
     # Create namelist
-    namelist_file = os.path.join(confdir, "hycom.configure")
+    namelist_file = os.path.join(confdir, "{}.configure".format(case.get_value('COMP_OCN')))
 
     # Write namelist
     nmlgen.write_nuopc_config_file(namelist_file, data_list_path)
