@@ -48,6 +48,26 @@ module read_impexp_config_mod
     real                 :: fillValue   = 999999999
   end type hycom_fld_type
 
+#ifdef CMEPS
+  type(hycom_fld_type),target,dimension(8) :: fldsImp = (/              &
+    hycom_fld_type("u10","Sa_u",                                        & !01
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("v10","Sa_v",                                        & !02
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("airtmp","Sa_tbot",                                  & !03
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("airhum","Sa_shum",                                  & !04
+                   "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),   &
+    hycom_fld_type("swflxd","Faxa_swnet",                               & !05
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("lwflxd","Faxa_lwdn",                                & !06
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("prcp","Faxa_rainl",                                 & !07
+                   "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("mslprs","Sa_pbot",                                  & !08
+                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)         &
+  /)
+#else
   type(hycom_fld_type),target,dimension(10) :: fldsImp = (/&
     hycom_fld_type("u10","inst_zonal_wind_height10m",&                       !01
                    "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
@@ -91,7 +111,14 @@ module read_impexp_config_mod
 !                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
 !    hycom_fld_type("sih","sea_ice_thickness",&                               !21
 !                   "m",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+#endif
 
+#ifdef CMEPS
+  type(hycom_fld_type),target,dimension(1) :: fldsExp = (/              &
+    hycom_fld_type("sst","So_t",                                        & !01
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
+  /)
+#else
   type(hycom_fld_type),target,dimension(1) :: fldsExp = (/&
     hycom_fld_type("sst","sea_surface_temperature",&                         !01
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
@@ -101,6 +128,7 @@ module read_impexp_config_mod
 !                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
 !    hycom_fld_type("ssv","sea_surface_y_velocity",&                          !04
 !                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+#endif
 
 
   public read_impexp_config

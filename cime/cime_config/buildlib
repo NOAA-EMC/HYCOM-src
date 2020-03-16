@@ -102,7 +102,7 @@ def buildlib(caseroot, libroot, bldroot):
             os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T"
         else:
             remove_files.append("hycom.F90")
-            os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
+            os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE -DCMEPS"
 
         # Create command
         makefile = os.path.join(casetools, "Makefile")
