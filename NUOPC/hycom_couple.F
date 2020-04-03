@@ -922,15 +922,15 @@ c       canonical unit conversion: lwflx_net (upward) -> (downward)
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
-            radflx(i,j,l0)=impData(i+i0,j+j0)
+            lwflx(i,j,l0)=impData(i+i0,j+j0)
           else
-            radflx(i,j,l0)=0.
+            lwflx(i,j,l0)=0.
           endif
         enddo
         enddo
 
 #if defined(ARCTIC)
-        call xctila(      radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+        call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 c---
@@ -946,15 +946,15 @@ c       +ve into ocean
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
-            radflx(i,j,l0)=impData(i+i0,j+j0)
+            lwflx(i,j,l0)=impData(i+i0,j+j0)
           else
-            radflx(i,j,l0)=0.
+            lwflx(i,j,l0)=0.
           endif
         enddo
         enddo
 
 #if defined(ARCTIC)
-        call xctila(      radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+        call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 c---
@@ -1271,26 +1271,23 @@ c================================
       jja = jj
 #endif
 
-!# ifdef ESPC_ATM
-# if defined(ESPC_ATM) || defined(ESPC_NAVGEM) || defined(ESPC_DATA_ATM)
-
       if (lwflag.eq.2) then
 !       radflx is defined as net lwflx+swflx, +ve into ocean
-!       the imported radflx is actually net lw flux, +ve into ocean
 
         do j=1,jja
         do i= 1,ii
-          radflx(i,j,l0)=radflx(i,j,l0)+swflx(i,j,l0)
+          radflx(i,j,l0)=lwflx(i,j,l0)+swflx(i,j,l0)
         enddo
         enddo
 
 #if defined(ARCTIC)
         call xctila(      radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
-
+      else
+        if(mnproc.eq.1) print *,"error - lwflag .ne. 2"
+        call xcstop('(ocn_import_forcing)')
+               stop '(ocn_import_forcing)'
       endif
-
-# endif
 
       if(.not.cpl_sic  .or. .not.cpl_sitx .or. .not.cpl_sity .or. 
      &    .not.cpl_siqs .or. .not.cpl_sifh .or. 

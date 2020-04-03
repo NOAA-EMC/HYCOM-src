@@ -381,6 +381,7 @@
        precip,         & ! precipitation
        radflx,         & ! net solar radiation
        swflx,          & ! net shortwave radiation
+       lwflx,          & ! net longwave radiation
        surtmp,         & ! surface temp. used to calculate input lw radiation
        seatmp,         & ! best available SST from observations
        stoc_t,         & ! stochastic temperature anomaly forcing
@@ -1460,6 +1461,7 @@
                precip(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                radflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                 swflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
+                lwflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                surtmp(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                seatmp(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                stoc_t(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
@@ -1482,6 +1484,7 @@
                precip = 0.0
                radflx = 0.0
                 swflx = 0.0
+                lwflx = 0.0
                surtmp = 0.0
                seatmp = 0.0
                stoc_t = 0.0
