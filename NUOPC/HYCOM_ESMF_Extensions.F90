@@ -24,6 +24,7 @@ module HYCOM_ESMF_Extensions
   private
 
   public :: HYCOM_ESMF_GridWrite
+  public :: HYCOM_ESMF_LogGrid
 
 !==============================================================================
 !
@@ -232,6 +233,169 @@ module HYCOM_ESMF_Extensions
       call ESMF_ArrayBundleDestroy(arraybundle,rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
     endif
+
+  end subroutine
+#undef METHOD
+
+  !-----------------------------------------------------------------------------
+
+#define METHOD "HYCOM_ESMF_LogGrid"
+!BOP
+! !IROUTINE: HYCOM_ESMF_LogGrid - Write ESMF grid information to PET logs
+! !INTERFACE:
+  ! call using generic interface: HYCOM_ESMF_LogGrid
+  subroutine HYCOM_ESMF_LogGrid(grid,label,rc)
+! ! ARGUMENTS
+    type(ESMF_Grid), intent(in)            :: grid
+    character(len=*), intent(in), optional :: label
+    integer, intent(out), optional         :: rc
+! !DESCRIPTION:
+!   Write ESMF grid information to PET logs
+!
+!   The arguments are:
+!   \begin{description}
+!   \end{description}
+!
+!EOP
+  !-----------------------------------------------------------------------------
+    ! local variables
+    character(len=64)           :: llabel
+    character(len=64)           :: gridName
+    type(ESMF_DistGrid)         :: distgrid
+    character(len=64)           :: transferAction
+    integer                     :: localDeCount
+    integer                     :: dimCount, tileCount, deCount
+    integer                     :: dimIndex, tileIndex, deIndex
+    integer,allocatable         :: coordDimCount(:)
+    integer                     :: coordDimMax
+    integer,allocatable         :: minIndexPTile(:,:), maxIndexPTile(:,:)
+    integer,allocatable         :: minIndexPDe(:,:), maxIndexPDe(:,:)
+    integer                     :: stat
+    character(len=ESMF_MAXSTR)  :: logMsg
+
+    if (present(rc)) rc = ESMF_SUCCESS
+    if (present(label)) then
+      llabel = trim(label)
+    else
+      llabel = 'HYCOM_ESMF_LogGrid'
+    endif
+
+    ! access localDeCount to show this is a real Grid
+    call ESMF_GridGet(grid, name=gridName, &
+      localDeCount=localDeCount, distgrid=distgrid, &
+      dimCount=dimCount,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
+
+    ! allocate coordDim info accord. to dimCount and tileCount
+    allocate(coordDimCount(dimCount), &
+      stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of coordinate dimensions memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
+
+    ! get coordDim info
+    call ESMF_GridGet(grid, coordDimCount=coordDimCount, &
+      rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
+
+    coordDimMax = 0
+    do dimIndex=1,dimCount
+      coordDimMax = MAX(coordDimMax,coordDimCount(dimIndex))
+    enddo
+
+    if (coordDimMax == 1) then
+      write (logMsg,"(A,A,A)") trim(llabel)//": ", &
+        trim(gridName), &
+        " is a rectilinear grid with 1D coordinates in each dimension."
+      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+    endif
+
+    deallocate(coordDimCount, &
+      stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Dellocation of coordinate dimensions memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
+
+    write (logMsg,"(A,A,(A,I0))") trim(llabel)//": ", &
+      trim(gridName), &
+      " local decomposition count=",localDeCount
+    call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+
+    ! get dimCount and tileCount
+    call ESMF_DistGridGet(distgrid, dimCount=dimCount, tileCount=tileCount, &
+      deCount=deCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
+
+    write (logMsg,"(A,A,(A,I0))") trim(llabel)//": ", &
+      trim(gridName), &
+      " dimension count=",dimCount
+    call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+    write (logMsg,"(A,A,(A,I0))") trim(llabel)//": ", &
+      trim(gridName), &
+      " tile count=",tileCount
+    call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+    write (logMsg,"(A,A,(A,I0))") trim(llabel)//": ", &
+      trim(gridName), &
+      " decomp count=",deCount
+    call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+
+    ! allocate minIndexPTile and maxIndexPTile accord. to dimCount and tileCount
+    allocate(minIndexPTile(dimCount, tileCount), &
+      maxIndexPTile(dimCount, tileCount),stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of index array memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
+
+    ! get minIndex and maxIndex arrays
+    call ESMF_DistGridGet(distgrid, minIndexPTile=minIndexPTile, &
+       maxIndexPTile=maxIndexPTile, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
+
+    do tileIndex=1,tileCount
+    do dimIndex=1,dimCount
+      write (logMsg,"(A,A,A,4(I0,A))") trim(llabel)//": ", &
+        trim(gridName), &
+        " (tile,dim,minIndexPTile,maxIndexPTile)=(", &
+        tileIndex,",",dimIndex,",", &
+        minIndexPTile(dimIndex,tileIndex),",", &
+        maxIndexPTile(dimIndex,tileIndex),")"
+      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+    enddo
+    enddo
+
+    deallocate(minIndexPTile, maxIndexPTile,stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of index array memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
+
+    ! allocate minIndexPDe and maxIndexPDe accord. to dimCount and deCount
+    allocate(minIndexPDe(dimCount, deCount), &
+      maxIndexPDe(dimCount, deCount),stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of index array memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
+
+    ! get minIndex and maxIndex arrays
+    call ESMF_DistGridGet(distgrid, minIndexPDe=minIndexPDe, &
+       maxIndexPDe=maxIndexPDe, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, PASSTHRU)) return  ! bail out
+
+    do deIndex=1,deCount
+    do dimIndex=1,dimCount
+      write (logMsg,"(A,A,A,4(I0,A))") trim(llabel)//": ", &
+        trim(gridName), &
+        " (decomp,dim,minIndexPDe,maxIndexPDe)=(", &
+        deIndex,",",dimIndex,",", &
+        minIndexPDe(dimIndex,deIndex),",", &
+        maxIndexPDe(dimIndex,deIndex),")"
+      call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
+    enddo
+    enddo
+
+    deallocate(minIndexPDe, maxIndexPDe,stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of index array memory failed.", &
+      CONTEXT, rcToReturn=rc)) return  ! bail out
 
   end subroutine
 #undef METHOD

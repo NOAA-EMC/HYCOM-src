@@ -958,6 +958,13 @@ end subroutine InitializeP1
 
     gridOut = gridIn ! for now out same as in
 
+    ! Log grid and decomp to PET logs
+    if (btest(verbosity,16)) then
+      call HYCOM_ESMF_LogGrid(gridOut, &
+        trim(cname)//"_"//rname,rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    endif
+
     ! Write grid to NetCDF file.
     if (btest(diagnostic,16)) then
       call HYCOM_ESMF_GridWrite(gridOut, "diagnostic_"//trim(cname)//"_"// &
