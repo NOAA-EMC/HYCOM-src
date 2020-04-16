@@ -46,7 +46,7 @@
                         HYCOM_Final
   use mod_archiv, only: archiv_exchange
   use hycom_couple, only: idim_size,jdim_size,deBList, &
-    lon_e,lat_e,mask_e,lon_q,lat_q, &
+    lon_p,lat_p,mask_p,area_p,lon_q,lat_q,mask_q,area_q, &
     hycom_couple_init,hycom_couple_final,set_hycom_import_flag, &
     import_to_hycom_deb, export_from_hycom_deb,ocn_import_forcing
 
@@ -696,9 +696,13 @@ end subroutine InitializeP1
 # ifdef ESPC_COUPLE
 
     type(ESMF_Field)        :: lon_field, lat_field,mask_field
+    type(ESMF_Field)        :: lon_corner_field,lat_corner_field
     real(ESMF_KIND_R8), dimension(:,:), pointer :: lon_data,lat_data,mask_data
+    real(ESMF_KIND_R8), dimension(:,:), pointer :: lon_corner_data
+    real(ESMF_KIND_R8), dimension(:,:), pointer :: lat_corner_data
     type(ESMF_ArraySpec) :: arraySpec2Dr
     real(kind=ESMF_KIND_R8), allocatable, dimension(:,:) :: tmp_e
+    real(kind=ESMF_KIND_R8), allocatable, dimension(:,:) :: tmp_c
     logical :: isConnected
 
 
@@ -795,8 +799,10 @@ end subroutine InitializeP1
 # ifdef ESPC_COUPLE
     if (lPet.eq.0) then
       allocate(tmp_e(itdmx,jtdmx))
+      allocate(tmp_c(itdmx+1,jtdmx+1))
     else
       allocate(tmp_e(1,1))
+      allocate(tmp_c(1,1))
     endif
 
 #endif
@@ -807,9 +813,15 @@ end subroutine InitializeP1
     call ESMF_DistGridConnectionSet(connection=connectionList(1), &
     tileIndexA=1, tileIndexB=1, positionVector=(/itdmx, 0/), rc=rc)
 
-    ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/itdmx,jtdmx/), &
-      indexflag=ESMF_INDEX_GLOBAL, &
-      deBlockList=deBList,connectionList=connectionList,rc=rc)
+!    ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/itdmx,jtdmx/), &
+!      indexflag=ESMF_INDEX_GLOBAL, &
+!      deBlockList=deBList,connectionList=connectionList,rc=rc)
+!    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
+
+    ! create new grid
+    ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), &
+       maxIndex=(/itdmx,jtdmx/), indexflag=ESMF_INDEX_GLOBAL, &
+       deBlockList=deBList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
 
 
@@ -843,24 +855,26 @@ end subroutine InitializeP1
   call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add coord failed", CONTEXT)) return
 
+! Add ESMF grid corner coordinate arrays
+  call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add corner coord failed", CONTEXT)) return
+
 ! Add ESMF mask array
   call ESMF_GridAddItem(gridIn, itemflag=ESMF_GRIDITEM_MASK, &
        staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add mask failed", CONTEXT)) return
 
-
-
     if ((ocn_esmf_imp_output.or.ocn_esmf_exp_output).and.lPet.eq.0) then
 
-      call impexp_cdf_put_latlonmsk('hycom',itdmx,jtdmx,lat_e, &
-        lon_e,mask_e,status,rc)
+      call impexp_cdf_put_latlonmsk('hycom',itdmx,jtdmx,lat_p, &
+        lon_p,mask_p,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
-      call impexp_cdf_put_latlonmsk('hycom-orig',idim_size,jdim_size,lat_e, &
-        lon_e,mask_e,status,rc)
+      call impexp_cdf_put_latlonmsk('hycom-orig',idim_size,jdim_size,lat_p, &
+        lon_p,mask_p,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
-      call impexp_cdf_put_latlonmsk_corner('hycom',idim_size,jdim_size,lat_e,lon_e,int(mask_e),lat_q, &
+      call impexp_cdf_put_latlonmsk_corner('hycom',idim_size,jdim_size,lat_p,lon_p,int(mask_p),lat_q, &
         lon_q,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk_corner failed", CONTEXT)) return
 
@@ -876,7 +890,7 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=lon_e(i,j)
+      tmp_e(i,j)=lon_p(i,j)
     enddo
     enddo
   endif
@@ -892,12 +906,64 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=lat_e(i,j)
+      tmp_e(i,j)=lat_p(i,j)
     enddo
     enddo
   endif
 
   call ESMF_FieldScatter(lat_field,tmp_e,rootPet=0,rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+!corner
+  lon_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
+                  name=TRIM("lon_corner_field"), rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+  if (lPet.eq.0) then
+    do i=1,itdmx
+    do j=1,jtdmx
+      tmp_c(i,j)=lon_q(i,j)
+    enddo
+    enddo
+
+    ! fill edges
+    do i=1,itdmx
+      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(lon_q(i,jtdmx)-lon_q(i,jtdmx-1))
+    end do
+    do j=1,jtdmx
+      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(lon_q(itdmx,j)-lon_q(itdmx-1,j))
+    end do
+    tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
+
+  endif
+
+  call ESMF_FieldScatter(lon_corner_field,tmp_c,rootPet=0,rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+  lat_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
+                  name=TRIM("lat_corner_field"), rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+  if (lPet.eq.0) then
+    do i=1,itdmx
+    do j=1,jtdmx
+      tmp_c(i,j)=lat_q(i,j)
+    enddo
+    enddo
+
+    ! fill edges
+    do i=1,itdmx
+      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(lat_q(i,jtdmx)-lat_q(i,jtdmx-1))
+    end do
+    do j=1,jtdmx
+      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(lat_q(itdmx,j)-lat_q(itdmx-1,j))
+    end do
+    tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
+  endif
+
+  call ESMF_FieldScatter(lat_corner_field,tmp_c,rootPet=0,rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
   mask_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
@@ -908,7 +974,7 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=mask_e(i,j)
+      tmp_e(i,j)=mask_p(i,j)
     enddo
     enddo
   endif
@@ -920,6 +986,12 @@ end subroutine InitializeP1
   if (ESMF_STDERRORCHECK(rc)) return
 
   call ESMF_FieldGet(lat_field,localDE,lat_data,rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+  call ESMF_FieldGet(lon_corner_field,localDE,lon_corner_data,rc=rc)
+  if (ESMF_STDERRORCHECK(rc)) return
+
+  call ESMF_FieldGet(lat_corner_field,localDE,lat_corner_data,rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
   call ESMF_FieldGet(mask_field,localDE,mask_data,rc=rc)
@@ -942,6 +1014,21 @@ end subroutine InitializeP1
 !  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
   fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_data(tlb(1):tub(1),tlb(2):tub(2))
 
+! Copy in corner coordinate data
+  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=1, &
+       staggerLoc=ESMF_STAGGERLOC_CORNER, &
+       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 1 failed", CONTEXT)) return
+!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_e(tlb(1):tub(1),tlb(2):tub(2))
+  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_corner_data(tlb(1):tub(1),tlb(2):tub(2))
+
+  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=2, &
+       staggerLoc=ESMF_STAGGERLOC_CORNER, &
+       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get corner coord 2 failed", CONTEXT)) return
+!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
+  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_corner_data(tlb(1):tub(1),tlb(2):tub(2))
+
 ! Copy in land/sea mask (integer)
   call ESMF_GridGetItem(gridIn, localDE=localDE, itemflag=ESMF_GRIDITEM_MASK, &
        staggerLoc=ESMF_STAGGERLOC_CENTER, &
@@ -952,6 +1039,8 @@ end subroutine InitializeP1
 
   call ESMF_FieldDestroy(lon_field,rc=rc)
   call ESMF_FieldDestroy(lat_field,rc=rc)
+  call ESMF_FieldDestroy(lon_corner_field,rc=rc)
+  call ESMF_FieldDestroy(lat_corner_field,rc=rc)
   call ESMF_FieldDestroy(mask_field,rc=rc)
 
 # endif
@@ -1051,6 +1140,7 @@ end subroutine InitializeP1
     endif
 
     deallocate(tmp_e)
+    deallocate(tmp_c)
 
 #endif
 

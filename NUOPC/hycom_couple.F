@@ -2,20 +2,22 @@
 
       use mod_xc  ! HYCOM communication interface
       use mod_cb_arrays
-
+      use hycom_read_latlon
 
       implicit none
 
       integer idim_size,jdim_size
       integer, dimension(:,:,:), allocatable :: deBList
 
-      real, dimension(:,:), allocatable :: lon_e
-      real, dimension(:,:), allocatable :: lat_e
-      real, dimension(:,:), allocatable :: mask_e
+      real, dimension(:,:), allocatable :: lon_p
+      real, dimension(:,:), allocatable :: lat_p
+      real, dimension(:,:), allocatable :: mask_p
+      real, dimension(:,:), allocatable :: area_p
 
       real, dimension(:,:), allocatable :: lon_q
       real, dimension(:,:), allocatable :: lat_q
-
+      real, dimension(:,:), allocatable :: mask_q
+      real, dimension(:,:), allocatable :: area_q
 
       contains
 
@@ -27,8 +29,6 @@ c===================================================
 
 
       real,   allocatable, dimension(:,:) :: tmx
-      real*4, allocatable, dimension(:,:) :: alon,alat
-      real*4, allocatable, dimension(:,:) :: qlon,qlat
 
       real,   allocatable, dimension(:,:) :: tmp_e
 
@@ -85,132 +85,57 @@ c      enddo
 
 # endif
 
-c-----------------------
-c     lat/lon/mask
-
-      if(mnproc.eq.1) then
-        allocate(lon_e(itdm,jtdm))
-        allocate(lat_e(itdm,jtdm))
-        allocate(mask_e(itdm,jtdm))
-        allocate(lon_q(itdm,jtdm))
-        allocate(lat_q(itdm,jtdm))
+      ! allocate arrays
+      if (mnproc.eq.1) then
+        if (.not. allocated(lon_p)) allocate(lon_p(itdm,jtdm))
+        if (.not. allocated(lat_p)) allocate(lat_p(itdm,jtdm))
+        if (.not. allocated(area_p)) allocate(area_p(itdm,jtdm))
+        if (.not. allocated(mask_p)) allocate(mask_p(itdm,jtdm))
+        if (.not. allocated(lon_q)) allocate(lon_q(itdm,jtdm))
+        if (.not. allocated(lat_q)) allocate(lat_q(itdm,jtdm))
+        if (.not. allocated(area_q)) allocate(area_q(itdm,jtdm))
+        if (.not. allocated(mask_q)) allocate(mask_q(itdm,jtdm))
       else
-        allocate(lon_e(1,1))
-        allocate(lat_e(1,1))
-        allocate(mask_e(1,1))
-        allocate(lon_q(1,1))
-        allocate(lat_q(1,1))
-      endif
-      allocate(tmp_e(itdm,jtdm))
+        if (.not. allocated(lon_p)) allocate(lon_p(1,1))
+        if (.not. allocated(lat_p)) allocate(lat_p(1,1))
+        if (.not. allocated(area_p)) allocate(area_p(1,1))
+        if (.not. allocated(mask_p)) allocate(mask_p(1,1))
+        if (.not. allocated(lon_q)) allocate(lon_q(1,1))
+        if (.not. allocated(lat_q)) allocate(lat_q(1,1))
+        if (.not. allocated(area_q)) allocate(area_q(1,1))
+        if (.not. allocated(mask_q)) allocate(mask_q(1,1))
+      end if
 
-      if(mnproc.eq.1) print *,'readHycomLatLon check0...' 
+      if (mnproc.eq.1) then
+        ! read hycom regional.grid.a
+        call get_coord(lat_p,lon_p,area_p,lat_q,lon_q,area_q,itdm,jtdm)
+      end if
 
-c     for plon -> lon_e
-c     for plat -> lat_e
-c     get and return lons, lats to all nodes
+      ! mask information
+      if (.not. allocated(tmx)) then
+        allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+      end if
 
-c      vland=-99999.9 !data void marker
+      tmx = 0.0
+      do j= 1, jj
+        do i= 1, ii
+          tmx(i,j) = ishlf(i,j)
+        end do
+      end do
+      call xcaget(mask_p, tmx, 1)
 
-      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
-
-
-
-c lon
-cx      lon_e(:,:)=9999.
-cx      call xcaget(lon_e,plon,1)
-      call xcaget(tmp_e,plon,1)
-      if(mnproc.eq.1) lon_e(:,:)=tmp_e(:,:)
-
-
-      if(mnproc.eq.1) then
-        do j=1,jtdm
-        do i=1,itdm
-          if(lon_e(i,j) .ge. 360) then
-            lon_e(i,j)=lon_e(i,j)-360.
-          else
-            lon_e(i,j)=lon_e(i,j)
-          endif
-        enddo
-        enddo
-      endif
-
-c lat
-cx      lat_e(:,:)=9999.
-cx      call xcaget(lat_e,plat,1)
-      call xcaget(tmp_e,plat,1)
-      if(mnproc.eq.1) lat_e(:,:)=tmp_e(:,:)
-
-
-
-c sea/land mask
-      tmx(:,:)=0.
-      do j= 1,jj
-        do i= 1,ii
-            tmx(i,j) = ishlf(i,j)
-cx            tmx(i,j) = ip(i,j)
-        enddo
-      enddo
-      mask_e(:,:)=0.
-cx      call xcaget(mask_e,tmx,1)
-      call xcaget(tmp_e,tmx,1)
-      if(mnproc.eq.1) mask_e(:,:)=tmp_e(:,:)
-
-
-
-      if(mnproc.eq.1) then
-        allocate(alon(itdm,jtdm))
-        allocate(alat(itdm,jtdm))
-        allocate(qlon(itdm,jtdm))
-        allocate(qlat(itdm,jtdm))
-      else
-        allocate(alon(1,1))
-        allocate(alat(1,1))
-        allocate(qlon(1,1))
-        allocate(qlat(1,1))
-      endif
-
-      if(mnproc.eq.1) then
-        print *,'readHycomLatLon check...'
-
-c       read hycom regional.grid.a
-c        call readHycomLatLon(alat,alon,itdm,jtdm)
-        call readHycomLatLon(alat,alon,qlat,qlon,itdm,jtdm)
-
-        do j=1,jtdm
-        do i=1,itdm
-          if(lon_e(i,j).eq.0 .and. lat_e(i,j).eq.0) then
-            lon_e(i,j)=alon(i,j)
-            lat_e(i,j)=alat(i,j)
-          endif
-          lon_q(i,j)=qlon(i,j)
-          lat_q(i,j)=qlat(i,j)
-        enddo
-        enddo
-
-      endif
-
-
-
-
-c      vland=0.0 !restore to default
-
-      if(allocated(tmx)) deallocate(tmx)
-
-      if(allocated(alon)) deallocate(alon)
-      if(allocated(alat)) deallocate(alat)
-      if(allocated(qlon)) deallocate(qlon)
-      if(allocated(qlat)) deallocate(qlat)
-
-      if(allocated(tmp_e)) deallocate(tmp_e)
+      tmx = 0.0
+      do j= 1, jj
+        do i= 1, ii
+          tmx(i,j) = iq(i,j)
+        end do
+      end do
+      call xcaget(mask_q, tmx, 1)
 
       if(mnproc.eq.1)  print *,"hycom_couple_init, end..."
-
  
       return
       end subroutine hycom_couple_init
-
-
-
 
 c===================================================
       subroutine set_hycom_import_flag(k,fieldName)
@@ -1430,11 +1355,16 @@ c================================
       subroutine hycom_couple_final()
 
       if(allocated(deBList)) deallocate(deBList)
-      if(allocated(lon_e)) deallocate(lon_e)
-      if(allocated(lat_e)) deallocate(lat_e)
-      if(allocated(mask_e)) deallocate(mask_e)
-      if(allocated(lon_q)) deallocate(lon_q)
-      if(allocated(lat_q)) deallocate(lat_q)
+      if (allocated(lon_p)) deallocate(lon_p)
+      if (allocated(lat_p)) deallocate(lat_p)
+      if (allocated(area_p)) deallocate(area_p)
+      if (allocated(mask_p)) deallocate(mask_p)
+      if (allocated(lon_q)) deallocate(lon_q)
+      if (allocated(lat_q)) deallocate(lat_q)
+      if (allocated(area_q)) deallocate(area_q)
+      if (allocated(mask_q)) deallocate(mask_q)
+
+
 
       return
       end subroutine hycom_couple_final
