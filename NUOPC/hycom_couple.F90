@@ -21,9 +21,9 @@
 
       contains
 
-c===================================================
+!===================================================
 
-      subroutine hycom_couple_init(nPets,rc) 
+      subroutine hycom_couple_init(nPets,rc)
 
       implicit none
 
@@ -38,15 +38,15 @@ c===================================================
 
       if(mnproc.eq.1) print *,"hycom_couple_init called..."
       rc=0
-c---------------------
-c     grid size
+!---------------------
+!     grid size
       idim_size=itdm
       jdim_size=jtdm
 
-c-----------------------
-c     deBlockList
+!-----------------------
+!     deBlockList
 
-c     directly from HYCOM 
+!     directly from HYCOM
 
 # ifdef ESPC_COUPLE
       IF (.not.allocated(deBList)) THEN
@@ -54,13 +54,13 @@ c     directly from HYCOM
       END IF
 
 
-c     should be something like the following
-c      do ij=1,nPets
-c        deBList(1,1,ij)=1+i0
-c        deBList(2,1,ij)=1+j0
-c        deBList(1,2,ij)=ii+i0
-c        deBList(2,2,ij)=jj+j0
-c      enddo
+!     should be something like the following
+!      do ij=1,nPets
+!        deBList(1,1,ij)=1+i0
+!        deBList(2,1,ij)=1+j0
+!        deBList(1,2,ij)=ii+i0
+!        deBList(2,2,ij)=jj+j0
+!      enddo
 
       do i=1,nPets
           deBList(1,1,i)=deBlockList(1,1,i)
@@ -74,10 +74,10 @@ c      enddo
         print *,'itdm,jtdm=',itdm,jtdm
         print *,'hycom,deBList BL11 BL21 BL12 BL22'
         do i =1,nPets
-          write(*,555)i,deBList(1,1,i),deBList(2,1,i),
-     &      deBList(1,2,i),deBList(2,2,i), 
-     &      deBList(1,2,i)-deBList(1,1,i)+1, 
-     &      deBList(2,2,i)-deBList(2,1,i)+1
+          write(*,555)i,deBList(1,1,i),deBList(2,1,i), &
+            deBList(1,2,i),deBList(2,2,i),             &
+            deBList(1,2,i)-deBList(1,1,i)+1,           &
+            deBList(2,2,i)-deBList(2,1,i)+1
 
         enddo
       endif
@@ -133,23 +133,23 @@ c      enddo
       call xcaget(mask_q, tmx, 1)
 
       if(mnproc.eq.1)  print *,"hycom_couple_init, end..."
- 
+
       return
       end subroutine hycom_couple_init
 
-c===================================================
+!===================================================
       subroutine set_hycom_import_flag(k,fieldName)
 
-c      use ocn_couple_impexp
-c      use mod_cb_arrays
+!      use ocn_couple_impexp
+!      use mod_cb_arrays
 
       implicit none
 
-      integer k 
+      integer k
       character(len=30) fieldName
 
-      if(mnproc.eq.1) print *,
-     &    "set_hycom_import_flag start...,k,name=",k,fieldName
+      if(mnproc.eq.1) print *, &
+          "set_hycom_import_flag start...,k,name=",k,fieldName
 
       if(k.eq.1) then
         cpl_taux=.false.
@@ -254,47 +254,47 @@ c      use mod_cb_arrays
         cpl_lthflx=.true.
 
       else if(fieldName .eq. 'sic' ) then
-c       import ice concentration
+!       import ice concentration
         cpl_sic=.true.
 
       else if(fieldName .eq. 'sitx' ) then
-c       import ice x-stress
+!       import ice x-stress
         cpl_sitx=.true.
 
       else if(fieldName .eq. 'sity' ) then
-c       import ice y-stress
+!       import ice y-stress
         cpl_sity=.true.
 
       else if(fieldName .eq. 'siqs' ) then
-c       import solar thru grid cell ave.
+!       import solar thru grid cell ave.
         cpl_siqs=.true.
 
       else if(fieldName .eq. 'sifh' ) then
-c       import freeze, melt, H. Flux
+!       import freeze, melt, H. Flux
         cpl_sifh=.true.
 
       else if(fieldName .eq. 'sifs' ) then
-c       import salt flux
+!       import salt flux
         cpl_sifs=.true.
 
       else if(fieldName .eq. 'sifw' ) then
-c       import water flux
+!       import water flux
         cpl_sifw=.true.
 
       else if(fieldName .eq. 'sit_sfc' ) then
-c       import sea ice temperature
+!       import sea ice temperature
         cpl_sit=.true.
 
       else if(fieldName .eq. 'sih' ) then
-c       import sea ice thickness
+!       import sea ice thickness
         cpl_sih=.true.
 
       else if(fieldName .eq. 'siu' ) then
-c       import sea ice x-velocity
+!       import sea ice x-velocity
         cpl_siu=.true.
 
       else if(fieldName .eq. 'siv' ) then
-c       import sea ice y-velocity
+!       import sea ice y-velocity
         cpl_siv=.true.
 
       endif  !if fieldName
@@ -306,16 +306,16 @@ c       import sea ice y-velocity
       end subroutine set_hycom_import_flag
 
 
-c====================================================
-      subroutine export_from_hycom_deb(tlb,tub,expData,
-     &  fieldName,show_minmax)
-c      use mod_xc  ! HYCOM communication interface
-c      use mod_cb_arrays
+!====================================================
+      subroutine export_from_hycom_deb(tlb,tub,expData, &
+        fieldName,show_minmax)
+!      use mod_xc  ! HYCOM communication interface
+!      use mod_cb_arrays
 
       implicit none
-c
-c      integer           k
-c      real              mgrid(ii,jj)
+!
+!      integer           k
+!      real              mgrid(ii,jj)
       integer tlb(2),tub(2)
       real expData(tlb(1):tub(1),tlb(2):tub(2))
 
@@ -331,14 +331,14 @@ c      real              mgrid(ii,jj)
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
 
-c
+!
       if(mnproc.eq.1) print *,"export_from_hycom_deb start..."
-c      print *,"idm,jdm,nbdy,ii,jj=",mnproc,idm,jdm,nbdy,ii,jj
+!      print *,"idm,jdm,nbdy,ii,jj=",mnproc,idm,jdm,nbdy,ii,jj
 
       call export_from_hycom_tiled(util2,fieldName)  !can't use util1
 
 #if defined(ARCTIC)
-c --- Arctic (tripole) domain, top row is replicated (ignore it)
+! --- Arctic (tripole) domain, top row is replicated (ignore it)
       jja = min( jj, jtdm-1-j0 )
 #else
       jja = jj
@@ -348,7 +348,7 @@ c --- Arctic (tripole) domain, top row is replicated (ignore it)
         do j=1,jj
         do i= 1,ii
 #ifndef ESPC_NOCANONICAL_CONVERT
-c           canonical unit conversion: sst (C) -> (K)
+!           canonical unit conversion: sst (C) -> (K)
             util2(i,j) = util2(i,j)+273.15d0
 #endif
 
@@ -359,7 +359,7 @@ c           canonical unit conversion: sst (C) -> (K)
       expData(:,:)=0.
       do j=1,jja
       do i=1,ii
-c        mgrid(i,j)=util2(i,j)
+!        mgrid(i,j)=util2(i,j)
         expData(i+i0,j+j0)=util2(i,j)
       enddo
       enddo
@@ -376,17 +376,17 @@ c        mgrid(i,j)=util2(i,j)
         allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
 
 
-c       sea/land mask
+!       sea/land mask
         tmx(:,:)=0.
         do j= 1,jja
         do i= 1,ii
             tmx(i,j) = ishlf(i,j)
-cx            tmx(i,j) = ip(i,j)
+!x            tmx(i,j) = ip(i,j)
         enddo
         enddo
 
         call xcaget(ocn_msk,tmx,1)
-c        call xcsync(no_flush)
+!        call xcsync(no_flush)
 
         tmx(:,:)=0.
         do j= 1,jja
@@ -396,28 +396,28 @@ c        call xcsync(no_flush)
         enddo
 
         call xcaget(field_tmp,tmx,1)
-c        call xcsync(no_flush)
+!        call xcsync(no_flush)
 
         if(mnproc.eq.1) then
 
-          write(*,992)trim(fieldName),
-     &    maxval(field_tmp,MASK=ocn_msk.eq.1 ),
-     &    minval(field_tmp,MASK=ocn_msk.eq.1 ),
-     &    sum(field_tmp,MASK=ocn_msk.eq.1 )/
-     &    count(ocn_msk.eq.1 )
+          write(*,992)trim(fieldName),          &
+          maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
+          minval(field_tmp,MASK=ocn_msk.eq.1 ), &
+          sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
+          count(ocn_msk.eq.1 )
  992      format('export_from_hycom_deb,max,min,mean=',A10,3E23.15)
 
-c          write(*,992) trim(fieldName),maxval(mgrid),minval(mgrid)
-c 992      format('export_from_hycom,max,min=',A10,2E12.4)
+!          write(*,992) trim(fieldName),maxval(mgrid),minval(mgrid)
+! 992      format('export_from_hycom,max,min=',A10,2E12.4)
            print *,"export_from_hycom_deb end..."
 
         endif
 
-c       test check pang
+!       test check pang
         call xcaget(ocn_msk,pang,1)
         if(mnproc.eq.1) then
-          print *,'export_from_hycom pang, min,max=',
-     &     minval(ocn_msk),maxval(ocn_msk)
+          print *,'export_from_hycom pang, min,max=', &
+           minval(ocn_msk),maxval(ocn_msk)
         endif
 
         if(allocated(ocn_msk)) deallocate(ocn_msk)
@@ -431,22 +431,22 @@ c       test check pang
       return
       end subroutine export_from_hycom_deb
 
-c==================================================
-      subroutine import_to_hycom_deb(tlb,tub,impData,
-     &  fieldName,show_minmax,data_init_flag)
+!==================================================
+      subroutine import_to_hycom_deb(tlb,tub,impData, &
+        fieldName,show_minmax,data_init_flag)
 
-c      use mod_xc  ! HYCOM communication interface
-c      use ocn_couple_impexp
-c      use mod_cb_arrays
+!      use mod_xc  ! HYCOM communication interface
+!      use ocn_couple_impexp
+!      use mod_cb_arrays
 
       implicit none
-c      include 'common_blocks.h'
-c
+!      include 'common_blocks.h'
+!
       character(len=30) fieldName
-c      integer           k
+!      integer           k
       integer tlb(2),tub(2)
       real impData(tlb(1):tub(1),tlb(2):tub(2))
-c
+!
       integer i,j,mcnt
       real    uij,vij
 
@@ -468,14 +468,14 @@ c
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
-c      if(mnproc.eq.1) print *,"import_to_hycom_deb start...,k,name=",k,
-c     &   fieldName
-      
-c      if(k.eq.1 .and. mnproc.eq.1) print *,"w0,w1..=",
-c     &    w0,w1,w2,w3
+!      if(mnproc.eq.1) print *,"import_to_hycom_deb start...,k,name=",k, &
+!         fieldName
+
+!      if(k.eq.1 .and. mnproc.eq.1) print *,"w0,w1..=", &
+!          w0,w1,w2,w3
 
 #if defined(ARCTIC)
-c --- Arctic (tripole) domain, top row is replicated (ignore it)
+! --- Arctic (tripole) domain, top row is replicated (ignore it)
       jja = min( jj, jtdm-1-j0 )
 #else
       jja = jj
@@ -483,7 +483,7 @@ c --- Arctic (tripole) domain, top row is replicated (ignore it)
 
 
       if(show_minmax) then
-cjc-01262014
+!jc-01262014
         if(mnproc.eq.1) then
           allocate(ocn_msk(itdm,jtdm))
           allocate(field_tmp(itdm,jtdm))
@@ -494,17 +494,17 @@ cjc-01262014
 
         allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
 
-c       sea/land mask
+!       sea/land mask
         tmx(:,:)=0.
         do j= 1,jja
         do i= 1,ii
           tmx(i,j) = ishlf(i,j)
-cx          tmx(i,j) = ip(i,j)
+!x          tmx(i,j) = ip(i,j)
         enddo
         enddo
 
         call xcaget(ocn_msk,tmx,1)
-c        call xcsync(no_flush)
+!        call xcsync(no_flush)
 
         tmx(:,:)=0.
         do j= 1,jja
@@ -515,17 +515,17 @@ c        call xcsync(no_flush)
         enddo
 
         call xcaget(field_tmp,tmx,1)
-c       call mpi_barrier(mpi_comm_hycom,ierr)
-c       call xcsync(no_flush)
+!       call mpi_barrier(mpi_comm_hycom,ierr)
+!       call xcsync(no_flush)
 
         if(mnproc.eq.1) then
 
-          write(*,992)trim(fieldName),
-     &    maxval(field_tmp,MASK=ocn_msk.eq.1 ),
-     &    minval(field_tmp,MASK=ocn_msk.eq.1 ),
-     &    sum(field_tmp,MASK=ocn_msk.eq.1 )/
-     &    count(ocn_msk.eq.1 )
-c 992      format('import_to_hycom_deb,max,min,mean=',A10,3E12.4)
+          write(*,992)trim(fieldName),          &
+          maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
+          minval(field_tmp,MASK=ocn_msk.eq.1 ), &
+          sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
+          count(ocn_msk.eq.1 )
+! 992      format('import_to_hycom_deb,max,min,mean=',A10,3E12.4)
  992      format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
 
         endif
@@ -539,12 +539,12 @@ c 992      format('import_to_hycom_deb,max,min,mean=',A10,3E12.4)
 
 
 
-c==>  import from atm
-c=================================================
+!==>  import from atm
+!=================================================
 
       if(fieldName .eq. 'taux10' ) then
 
-c       import xstress: Pa
+!       import xstress: Pa
 
 
         do j=1,jja
@@ -563,12 +563,12 @@ c       import xstress: Pa
 #endif
         call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'tauy10' ) then
 
-c       import ystress: Pa
+!       import ystress: Pa
 
         do j=1,jja
         do i=1,ii
@@ -585,7 +585,7 @@ c       import ystress: Pa
 
             uij = taux(i,j,l0)
             vij = tauy(i,j,l0)
-c           rotate to (x,y)ward
+!           rotate to (x,y)ward
             taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
             tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
         enddo !i
@@ -598,12 +598,12 @@ c           rotate to (x,y)ward
         call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
         call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'u10' ) then
 
-c       import u wind at 10m height: ms-1
+!       import u wind at 10m height: ms-1
 
 
         do j=1,jja
@@ -621,12 +621,12 @@ c       import u wind at 10m height: ms-1
 #endif
         call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'v10' ) then
 
-c       import v wind at 10m height: ms-1
+!       import v wind at 10m height: ms-1
 
         do j=1,jja
         do i=1,ii
@@ -642,7 +642,7 @@ c       import v wind at 10m height: ms-1
         do i=1,ii
           uij = taux(i,j,l0)
           vij = tauy(i,j,l0)
-c         rotate to (x,y)ward
+!         rotate to (x,y)ward
           taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
           tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
         enddo !i
@@ -655,12 +655,12 @@ c         rotate to (x,y)ward
         call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
         call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'wndspd10' ) then
 
-c       import wind speed: m s-1 
+!       import wind speed: m s-1
 
         do j=1,jja
         do i=1,ii
@@ -676,12 +676,12 @@ c       import wind speed: m s-1
         call xctila(      wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'ustara10' ) then
 
-c       import friction speed: m s-1
+!       import friction speed: m s-1
 
         do j=1,jja
         do i=1,ii
@@ -697,14 +697,14 @@ c       import friction speed: m s-1
         call xctila(      ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'airtmp' ) then
-c        cpl_airtmp=.true.
+!        cpl_airtmp=.true.
 
-c       import air temperature
-c       canonical unit conversion: airtmp (K) -> (C)
+!       import air temperature
+!       canonical unit conversion: airtmp (K) -> (C)
         do j=1,jja
         do i=1,ii
           impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
@@ -725,15 +725,15 @@ c       canonical unit conversion: airtmp (K) -> (C)
         call xctila(      airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
 
       elseif(fieldName .eq. 'airhum' ) then
 
-c       import specific humidity: kg kg-1 
+!       import specific humidity: kg kg-1
 
-c       convert from specific humidity to mixing ratio
+!       convert from specific humidity to mixing ratio
 
         do j=1,jja
         do i=1,ii
@@ -752,13 +752,13 @@ c       convert from specific humidity to mixing ratio
         call xctila(      vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
 
       else if(fieldName .eq. 'swflx_net' ) then
 
-c       import sw flux: w m-2
+!       import sw flux: w m-2
 
         do j=1,jja
         do i=1,ii
@@ -774,13 +774,13 @@ c       import sw flux: w m-2
         call xctila(      swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
-      else if(fieldName .eq. 'swflx_net2down'
-     &      .or. fieldName .eq. 'swflxd' ) then
+      else if(fieldName .eq. 'swflx_net2down' &
+            .or. fieldName .eq. 'swflxd' ) then
 
-c       import downward sw flux: w m-2
+!       import downward sw flux: w m-2
 
 
         do j=1,jja
@@ -796,17 +796,17 @@ c       import downward sw flux: w m-2
 
 
         if     (albflg.ne.0) then  !swflx is Qswdn
-c ---     use the same method as on forfun.F
-c ---     convert swflx to net shortwave into the ocean
-c ---     shortwave through sea ice is handled separately
+! ---     use the same method as on forfun.F
+! ---     convert swflx to net shortwave into the ocean
+! ---     shortwave through sea ice is handled separately
           if     (albflg.eq.1) then
             do j=1,jja
             do i=1,ii
-c              if(ishlf(i,j).eq.1) then
+!              if(ishlf(i,j).eq.1) then
                 swflx(i,j,l0) = swflx(i,j,l0)*(1.0-0.09)  !NAVGEM albedo
-c              else
-c                swflx(i,j,l0) = 0.
-c              endif
+!              else
+!                swflx(i,j,l0) = 0.
+!              endif
             enddo
             enddo
           else   !albflg.eq.2
@@ -814,14 +814,14 @@ c              endif
             do j=1,jja
             do i=1,ii
 
-c ---           latitudinally-varying ocean albedo (Large and Yeager, 2009)
-c ---           5.8% at the equator and 8% at the poles
+! ---           latitudinally-varying ocean albedo (Large and Yeager, 2009)
+! ---           5.8% at the equator and 8% at the poles
                 albw = ( 0.069 - 0.011*cos(2.0*degtorad*plat(i,j) ) )
-c                if(ishlf(i,j).eq.1) then
+!                if(ishlf(i,j).eq.1) then
                   swflx(i,j,l0) = swflx(i,j,l0)*(1.0-albw)
-c                else
-c                  swflx(i,j,l0) = 0.
-c                endif
+!                else
+!                  swflx(i,j,l0) = 0.
+!                endif
             enddo
             enddo
           endif !albflg
@@ -831,13 +831,13 @@ c                endif
         call xctila(      swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'lwflx_net' ) then
 
-c       import lw flux: w m-2
-c       canonical unit conversion: lwflx_net (upward) -> (downward)
+!       import lw flux: w m-2
+!       canonical unit conversion: lwflx_net (upward) -> (downward)
         do j=1,jja
         do i=1,ii
           impData(i+i0,j+j0)=impData(i+i0,j+j0)*(-1.)
@@ -858,14 +858,14 @@ c       canonical unit conversion: lwflx_net (upward) -> (downward)
         call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
-      else if(fieldName .eq. 'lwflx_net2down'
-     &      .or. fieldName .eq. 'lwflxd' ) then
+      else if(fieldName .eq. 'lwflx_net2down' &
+            .or. fieldName .eq. 'lwflxd' ) then
 
-c       import downward lw flux: w m-2
-c       +ve into ocean
+!       import downward lw flux: w m-2
+!       +ve into ocean
 
 
         do j=1,jja
@@ -882,14 +882,14 @@ c       +ve into ocean
         call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
 
       else if(fieldName .eq. 'prcp' ) then
 
-c       import precip: m s-1
-c       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1 
+!       import precip: m s-1
+!       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
         do j=1,jja
         do i=1,ii
           impData(i+i0,j+j0)=impData(i+i0,j+j0)*(0.001)
@@ -912,11 +912,11 @@ c       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
         call xctila(      precip(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'gt' ) then
-c       canonical unit conversion: gt (K) -> (C)
+!       canonical unit conversion: gt (K) -> (C)
         do j=1,jja
         do i=1,ii
           impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
@@ -943,8 +943,8 @@ c       canonical unit conversion: gt (K) -> (C)
           do j=1,jja
           do i=1,ii
 
-              seatmp(i,j,l0) = max( sstmin, 
-     &            min(surtmp(i,j,l0), sstmax ) )
+              seatmp(i,j,l0) = max( sstmin, &
+                  min(surtmp(i,j,l0), sstmax ) )
           enddo
           enddo
 #if defined(ARCTIC)
@@ -953,11 +953,11 @@ c       canonical unit conversion: gt (K) -> (C)
 
         endif
 
-c---
-c=================================================
+!---
+!=================================================
 
       else if(fieldName .eq. 'mslprs' ) then
-c       import sea level pressure anomaly: Pa
+!       import sea level pressure anomaly: Pa
 
 
         do j=1,jja
@@ -976,12 +976,12 @@ c       import sea level pressure anomaly: Pa
         call xctilr(mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
 
 
-c---
-c=================================================
+!---
+!=================================================
 
-c==>    import from sea ice
+!==>    import from sea ice
       else if(fieldName .eq. 'sic' ) then
-c       import ice concentration
+!       import ice concentration
 
         do j=1,jja
         do i=1,ii
@@ -998,7 +998,7 @@ c       import ice concentration
 #endif
 
       else if(fieldName .eq. 'sitx' ) then
-c       import ice x-stress
+!       import ice x-stress
 
         do j=1,jja
         do i=1,ii
@@ -1014,7 +1014,7 @@ c       import ice x-stress
 #endif
 
       else if(fieldName .eq. 'sity' ) then
-c       import ice y-stress
+!       import ice y-stress
 
         do j=1,jja
         do i=1,ii
@@ -1030,7 +1030,7 @@ c       import ice y-stress
 #endif
 
       else if(fieldName .eq. 'siqs' ) then
-c       import solar thru grid cell ave.
+!       import solar thru grid cell ave.
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1045,7 +1045,7 @@ c       import solar thru grid cell ave.
 #endif
 
       else if(fieldName .eq. 'sifh' ) then
-c       import freeze, melt, H. Flux
+!       import freeze, melt, H. Flux
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1060,7 +1060,7 @@ c       import freeze, melt, H. Flux
 #endif
 
       else if(fieldName .eq. 'sifs' ) then
-c       import salt flux
+!       import salt flux
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1075,7 +1075,7 @@ c       import salt flux
 #endif
 
       else if(fieldName .eq. 'sifw' ) then
-c       import water flux
+!       import water flux
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1090,9 +1090,9 @@ c       import water flux
 #endif
 
       else if(fieldName .eq. 'sit_sfc' ) then
-c       import sea ice temperature
+!       import sea ice temperature
 #ifndef ESPC_NOCANONICAL_CONVERT
-c       canonical unit conversion: sit_sfc (K) -> (C)
+!       canonical unit conversion: sit_sfc (K) -> (C)
         do j=1,jja
         do i=1,ii
           impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15d0
@@ -1114,7 +1114,7 @@ c       canonical unit conversion: sit_sfc (K) -> (C)
 #endif
 
       else if(fieldName .eq. 'sih' ) then
-c       import sea ice thickness
+!       import sea ice thickness
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1129,7 +1129,7 @@ c       import sea ice thickness
 #endif
 
       else if(fieldName .eq. 'siu' ) then
-c       import sea ice x-velocity
+!       import sea ice x-velocity
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1141,7 +1141,7 @@ c       import sea ice x-velocity
         enddo
 
       else if(fieldName .eq. 'siv' ) then
-c       import sea ice y-velocity
+!       import sea ice y-velocity
         do j=1,jja
         do i=1,ii
           if(ishlf(i,j).eq.1) then
@@ -1153,13 +1153,13 @@ c       import sea ice y-velocity
         enddo
 
 #ifndef ESPC_NOCANONICAL_CONVERT
-c ---   rotate to (x,y)ward
+! ---   rotate to (x,y)ward
 
         do j=1,jja
         do i=1,ii
           uij = siu_import(i,j)
           vij = siv_import(i,j)
-c         rotate to (x,y)ward
+!         rotate to (x,y)ward
           siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
           siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
         enddo !i
@@ -1181,7 +1181,7 @@ c         rotate to (x,y)ward
 
       return
       end subroutine import_to_hycom_deb
-c================================
+!================================
       subroutine ocn_import_forcing()
 
 !      include 'common_blocks.h'
@@ -1214,14 +1214,14 @@ c================================
                stop '(ocn_import_forcing)'
       endif
 
-      if(.not.cpl_sic  .or. .not.cpl_sitx .or. .not.cpl_sity .or. 
-     &    .not.cpl_siqs .or. .not.cpl_sifh .or. 
-     &    .not.cpl_sifs .or. .not.cpl_sifw .or. 
-     &    .not.cpl_sit  .or. .not.cpl_sih  .or.
-     &    .not.cpl_siu  .or. .not. cpl_siv) then
+      if(.not.cpl_sic  .or. .not.cpl_sitx .or. .not.cpl_sity .or. &
+          .not.cpl_siqs .or. .not.cpl_sifh .or.                   &
+          .not.cpl_sifs .or. .not.cpl_sifw .or.                   &
+          .not.cpl_sit  .or. .not.cpl_sih  .or.                   &
+          .not.cpl_siu  .or. .not. cpl_siv) then
 
-         if(mnproc.eq.1) print *, 
-     &   'warning... no feedback from CICE to HYCOM(ocn_import_forcing)'
+         if(mnproc.eq.1) print *, &
+         'warning... no feedback from CICE to HYCOM(ocn_import_forcing)'
          return
 
       endif
@@ -1238,8 +1238,8 @@ c================================
              si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
              si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
             fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
-            flxice(i,j) =  fswice(i,j) + 
-     &                     sifh_import(i,j) !Ice Freezing/Melting Heat Flux
+            flxice(i,j) =  fswice(i,j) + &
+                           sifh_import(i,j) !Ice Freezing/Melting Heat Flux
             sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
             wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
             temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
@@ -1371,8 +1371,8 @@ c================================
 
 
 
-c========================================================
+!========================================================
 
       end module hycom_couple
 
-c========================================================
+!========================================================

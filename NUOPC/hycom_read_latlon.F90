@@ -57,7 +57,7 @@
         call exit(3)
       endif
       lat_p = tmp1
-     
+
       read(11,rec=3,iostat=ios) tmp1
       if (ios.ne.0) then
         print *,"error in reading regional.grid.a, qlon"
@@ -71,7 +71,7 @@
         call exit(3)
       endif
       lat_q = tmp1
- 
+
       do j=1, jtdm
         do i=1, itdm
           if (lon_p(i,j).ge.360.) lon_p(i,j) = lon_p(i,j)-360.

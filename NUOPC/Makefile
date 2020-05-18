@@ -400,12 +400,12 @@ check_cap:
 
 nuopcdistclean: modelclean nuopcclean
 
-modelclean: 
+modelclean:
 	@echo $(HR)
 	@echo "Cleaning Model build..."
 	@echo ""
 #	cd $(MODEL_DIR) && make clean ARCH="$(ARCH)" TYPE="$(TYPE)" CPP_EXTRAS="$(CPP_EXTRAS)"
-	rm -f $(MODEL_OBJDIR)/*.o $(MODEL_OBJDIR)/*.mod 
+	rm -f $(MODEL_OBJDIR)/*.o $(MODEL_OBJDIR)/*.mod
 	rm -f $(MODEL_LIB)
 
 # ##########
