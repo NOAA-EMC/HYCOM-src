@@ -1,540 +1,540 @@
-      module hycom_couple
+module hycom_couple
 
-      use mod_xc  ! HYCOM communication interface
-      use mod_cb_arrays
-      use hycom_read_latlon
+  use mod_xc  ! HYCOM communication interface
+  use mod_cb_arrays
+  use hycom_read_latlon
 
-      implicit none
+  implicit none
 
-      integer idim_size,jdim_size
-      integer, dimension(:,:,:), allocatable :: deBList
+  integer idim_size,jdim_size
+  integer, dimension(:,:,:), allocatable :: deBList
 
-      real, dimension(:,:), allocatable :: lon_p
-      real, dimension(:,:), allocatable :: lat_p
-      real, dimension(:,:), allocatable :: mask_p
-      real, dimension(:,:), allocatable :: area_p
+  real, dimension(:,:), allocatable :: lon_p
+  real, dimension(:,:), allocatable :: lat_p
+  real, dimension(:,:), allocatable :: mask_p
+  real, dimension(:,:), allocatable :: area_p
 
-      real, dimension(:,:), allocatable :: lon_q
-      real, dimension(:,:), allocatable :: lat_q
-      real, dimension(:,:), allocatable :: mask_q
-      real, dimension(:,:), allocatable :: area_q
+  real, dimension(:,:), allocatable :: lon_q
+  real, dimension(:,:), allocatable :: lat_q
+  real, dimension(:,:), allocatable :: mask_q
+  real, dimension(:,:), allocatable :: area_q
 
-      contains
+  contains
 
 !===================================================
 
-      subroutine hycom_couple_init(nPets,rc)
+  subroutine hycom_couple_init(nPets,rc)
 
-      implicit none
-
-
-      real,   allocatable, dimension(:,:) :: tmx
-
-      real,   allocatable, dimension(:,:) :: tmp_e
+    implicit none
 
 
-      integer i,j,rc
-      integer nPets
+    real, allocatable, dimension(:,:) :: tmx
 
-      if(mnproc.eq.1) print *,"hycom_couple_init called..."
-      rc=0
+    real, allocatable, dimension(:,:) :: tmp_e
+
+
+    integer i,j,rc
+    integer nPets
+
+    if (mnproc.eq.1) print *,"hycom_couple_init called..."
+    rc=0
 !---------------------
-!     grid size
-      idim_size=itdm
-      jdim_size=jtdm
+!   grid size
+    idim_size=itdm
+    jdim_size=jtdm
 
 !-----------------------
-!     deBlockList
+!   deBlockList
 
-!     directly from HYCOM
+!   directly from HYCOM
 
-# ifdef ESPC_COUPLE
-      IF (.not.allocated(deBList)) THEN
-          allocate ( deBList(2,2,nPets ) )
-      END IF
+#ifdef ESPC_COUPLE
+    IF (.not.allocated(deBList)) THEN
+      allocate (deBList(2,2,nPets))
+    ENDIF
 
 
-!     should be something like the following
-!      do ij=1,nPets
-!        deBList(1,1,ij)=1+i0
-!        deBList(2,1,ij)=1+j0
-!        deBList(1,2,ij)=ii+i0
-!        deBList(2,2,ij)=jj+j0
-!      enddo
+!   should be something like the following
+!   do ij=1,nPets
+!     deBList(1,1,ij)=1+i0
+!     deBList(2,1,ij)=1+j0
+!     deBList(1,2,ij)=ii+i0
+!     deBList(2,2,ij)=jj+j0
+!   enddo
 
-      do i=1,nPets
-          deBList(1,1,i)=deBlockList(1,1,i)
-          deBList(2,1,i)=deBlockList(2,1,i)
-          deBList(1,2,i)=deBlockList(1,2,i)
-          deBList(2,2,i)=deBlockList(2,2,i)
+    do i=1,nPets
+      deBList(1,1,i)=deBlockList(1,1,i)
+      deBList(2,1,i)=deBlockList(2,1,i)
+      deBList(1,2,i)=deBlockList(1,2,i)
+      deBList(2,2,i)=deBlockList(2,2,i)
+    enddo
+
+
+    if (mnproc.eq.1) then
+      print *,'itdm,jtdm=',itdm,jtdm
+      print *,'hycom,deBList BL11 BL21 BL12 BL22'
+      do i =1,nPets
+        write(*,555)i,deBList(1,1,i),deBList(2,1,i), &
+          deBList(1,2,i),deBList(2,2,i),             &
+          deBList(1,2,i)-deBList(1,1,i)+1,           &
+          deBList(2,2,i)-deBList(2,1,i)+1
+
       enddo
-
-
-      if(mnproc.eq.1) then
-        print *,'itdm,jtdm=',itdm,jtdm
-        print *,'hycom,deBList BL11 BL21 BL12 BL22'
-        do i =1,nPets
-          write(*,555)i,deBList(1,1,i),deBList(2,1,i), &
-            deBList(1,2,i),deBList(2,2,i),             &
-            deBList(1,2,i)-deBList(1,1,i)+1,           &
-            deBList(2,2,i)-deBList(2,1,i)+1
-
-        enddo
-      endif
+    endif
  555  format(I4,4I8,3x,2I8)
 
-# endif
+#endif
 
-      ! allocate arrays
-      if (mnproc.eq.1) then
-        if (.not. allocated(lon_p)) allocate(lon_p(itdm,jtdm))
-        if (.not. allocated(lat_p)) allocate(lat_p(itdm,jtdm))
-        if (.not. allocated(area_p)) allocate(area_p(itdm,jtdm))
-        if (.not. allocated(mask_p)) allocate(mask_p(itdm,jtdm))
-        if (.not. allocated(lon_q)) allocate(lon_q(itdm,jtdm))
-        if (.not. allocated(lat_q)) allocate(lat_q(itdm,jtdm))
-        if (.not. allocated(area_q)) allocate(area_q(itdm,jtdm))
-        if (.not. allocated(mask_q)) allocate(mask_q(itdm,jtdm))
-      else
-        if (.not. allocated(lon_p)) allocate(lon_p(1,1))
-        if (.not. allocated(lat_p)) allocate(lat_p(1,1))
-        if (.not. allocated(area_p)) allocate(area_p(1,1))
-        if (.not. allocated(mask_p)) allocate(mask_p(1,1))
-        if (.not. allocated(lon_q)) allocate(lon_q(1,1))
-        if (.not. allocated(lat_q)) allocate(lat_q(1,1))
-        if (.not. allocated(area_q)) allocate(area_q(1,1))
-        if (.not. allocated(mask_q)) allocate(mask_q(1,1))
-      end if
+    ! allocate arrays
+    if (mnproc.eq.1) then
+      if (.not. allocated(lon_p)) allocate(lon_p(itdm,jtdm))
+      if (.not. allocated(lat_p)) allocate(lat_p(itdm,jtdm))
+      if (.not. allocated(area_p)) allocate(area_p(itdm,jtdm))
+      if (.not. allocated(mask_p)) allocate(mask_p(itdm,jtdm))
+      if (.not. allocated(lon_q)) allocate(lon_q(itdm,jtdm))
+      if (.not. allocated(lat_q)) allocate(lat_q(itdm,jtdm))
+      if (.not. allocated(area_q)) allocate(area_q(itdm,jtdm))
+      if (.not. allocated(mask_q)) allocate(mask_q(itdm,jtdm))
+    else
+      if (.not. allocated(lon_p)) allocate(lon_p(1,1))
+      if (.not. allocated(lat_p)) allocate(lat_p(1,1))
+      if (.not. allocated(area_p)) allocate(area_p(1,1))
+      if (.not. allocated(mask_p)) allocate(mask_p(1,1))
+      if (.not. allocated(lon_q)) allocate(lon_q(1,1))
+      if (.not. allocated(lat_q)) allocate(lat_q(1,1))
+      if (.not. allocated(area_q)) allocate(area_q(1,1))
+      if (.not. allocated(mask_q)) allocate(mask_q(1,1))
+    endif
 
-      if (mnproc.eq.1) then
-        ! read hycom regional.grid.a
-        call get_coord(lat_p,lon_p,area_p,lat_q,lon_q,area_q,itdm,jtdm)
-      end if
+    if (mnproc.eq.1) then
+      ! read hycom regional.grid.a
+      call get_coord(lat_p,lon_p,area_p,lat_q,lon_q,area_q,itdm,jtdm)
+    endif
 
-      ! mask information
-      if (.not. allocated(tmx)) then
-        allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
-      end if
+    ! mask information
+    if (.not. allocated(tmx)) then
+      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+    endif
 
-      tmx = 0.0
-      do j= 1, jj
-        do i= 1, ii
-          tmx(i,j) = ishlf(i,j)
-        end do
-      end do
-      call xcaget(mask_p, tmx, 1)
+    tmx = 0.0
+    do j=1, jj
+    do i=1, ii
+      tmx(i,j) = ishlf(i,j)
+    enddo
+    enddo
+    call xcaget(mask_p, tmx, 1)
 
-      tmx = 0.0
-      do j= 1, jj
-        do i= 1, ii
-          tmx(i,j) = iq(i,j)
-        end do
-      end do
-      call xcaget(mask_q, tmx, 1)
+    tmx = 0.0
+    do j=1, jj
+    do i=1, ii
+      tmx(i,j) = iq(i,j)
+    enddo
+    enddo
+    call xcaget(mask_q, tmx, 1)
 
-      if(mnproc.eq.1)  print *,"hycom_couple_init, end..."
+    if (mnproc.eq.1)  print *,"hycom_couple_init, end..."
 
-      return
-      end subroutine hycom_couple_init
+    return
+  end subroutine hycom_couple_init
 
 !===================================================
-      subroutine set_hycom_import_flag(k,fieldName)
+  subroutine set_hycom_import_flag(k,fieldName)
 
-!      use ocn_couple_impexp
-!      use mod_cb_arrays
+!   use ocn_couple_impexp
+!   use mod_cb_arrays
 
-      implicit none
+    implicit none
 
-      integer k
-      character(len=30) fieldName
+    integer k
+    character(len=30) fieldName
 
-      if(mnproc.eq.1) print *, &
-          "set_hycom_import_flag start...,k,name=",k,fieldName
+    if (mnproc.eq.1) print *, &
+      "set_hycom_import_flag start...,k,name=",k,fieldName
 
-      if(k.eq.1) then
-        cpl_taux=.false.
-        cpl_tauy=.false.
-        cpl_u10=.false.
-        cpl_v10=.false.
-        cpl_wndspd=.false.
-        cpl_ustara=.false.
-        cpl_airtmp=.false.
-        cpl_vapmix=.false.
-        cpl_swflx_net=.false.
-        cpl_lwflx_net=.false.
-        cpl_swflx_net2down=.false.
-        cpl_lwflx_net2down=.false.
-        cpl_swflxd=.false.
-        cpl_lwflxd=.false.
-        cpl_mslprs=.false.
-        cpl_precip=.false.
-        cpl_surtmp=.false.
-        cpl_seatmp=.false.
-        cpl_sbhflx=.false.
-        cpl_lthflx=.false.
-        cpl_sic=.false.
-        cpl_sitx=.false.
-        cpl_sity=.false.
-        cpl_siqs=.false.
-        cpl_sifh=.false.
-        cpl_sifs=.false.
-        cpl_sifw=.false.
-        cpl_sit=.false.
-        cpl_sih=.false.
-        cpl_siu=.false.
-        cpl_siv=.false.
-      endif
-
-
-
-      if(fieldName .eq. 'taux10' ) then
-        cpl_taux=.true.
-
-      else if(fieldName .eq. 'tauy10' ) then
-        cpl_tauy=.true.
-        if     (.not.cpl_taux) then
-          if(mnproc.eq.1) print *,"error - tauy before taux"
-          call xcstop('(set_hycom_import_flag)')
-                 stop '(set_hycom_import_flag)'
-        endif !error
-
-      else if(fieldName .eq. 'u10' ) then
-        cpl_u10=.true.
-
-      else if(fieldName .eq. 'v10' ) then
-        cpl_v10=.true.
-        if     (.not.cpl_u10) then
-          if(mnproc.eq.1) print *,"error - v10 before u10"
-          call xcstop('(set_hycom_import_flag)')
-                 stop '(set_hycom_import_flag)'
-        endif !error
-
-      else if(fieldName .eq. 'wndspd10' ) then
-        cpl_wndspd=.true.
-
-      else if(fieldName .eq. 'ustara10' ) then
-        cpl_ustara=.true.
-
-      else if(fieldName .eq. 'airtmp' ) then
-        cpl_airtmp=.true.
-
-      elseif(fieldName .eq. 'airhum' ) then
-        cpl_vapmix=.true.
-
-      else if(fieldName .eq. 'swflx_net' ) then
-        cpl_swflx_net=.true.
-
-      else if(fieldName .eq. 'lwflx_net' ) then
-        cpl_lwflx_net=.true.
-
-      else if(fieldName .eq. 'swflx_net2down' ) then
-        cpl_swflx_net2down=.true.
-
-      else if(fieldName .eq. 'lwflx_net2down' ) then
-        cpl_lwflx_net2down=.true.
-
-      else if(fieldName .eq. 'swflxd' ) then
-        cpl_swflxd=.true.
-
-      else if(fieldName .eq. 'lwflxd' ) then
-        cpl_lwflxd=.true.
-      else if(fieldName .eq. 'mslprs' ) then
-       cpl_mslprs=.true.
-      else if(fieldName .eq. 'prcp' ) then
-        cpl_precip=.true.
-
-      else if(fieldName .eq. 'gt' ) then
-        cpl_surtmp=.true.
-        cpl_seatmp=.true.
-
-      else if(fieldName .eq. 'sbhflx' ) then
-        cpl_sbhflx=.true.
-
-      else if(fieldName .eq. 'lthflx' ) then
-        cpl_lthflx=.true.
-
-      else if(fieldName .eq. 'sic' ) then
-!       import ice concentration
-        cpl_sic=.true.
-
-      else if(fieldName .eq. 'sitx' ) then
-!       import ice x-stress
-        cpl_sitx=.true.
-
-      else if(fieldName .eq. 'sity' ) then
-!       import ice y-stress
-        cpl_sity=.true.
-
-      else if(fieldName .eq. 'siqs' ) then
-!       import solar thru grid cell ave.
-        cpl_siqs=.true.
-
-      else if(fieldName .eq. 'sifh' ) then
-!       import freeze, melt, H. Flux
-        cpl_sifh=.true.
-
-      else if(fieldName .eq. 'sifs' ) then
-!       import salt flux
-        cpl_sifs=.true.
-
-      else if(fieldName .eq. 'sifw' ) then
-!       import water flux
-        cpl_sifw=.true.
-
-      else if(fieldName .eq. 'sit_sfc' ) then
-!       import sea ice temperature
-        cpl_sit=.true.
-
-      else if(fieldName .eq. 'sih' ) then
-!       import sea ice thickness
-        cpl_sih=.true.
-
-      else if(fieldName .eq. 'siu' ) then
-!       import sea ice x-velocity
-        cpl_siu=.true.
-
-      else if(fieldName .eq. 'siv' ) then
-!       import sea ice y-velocity
-        cpl_siv=.true.
-
-      endif  !if fieldName
+    if (k.eq.1) then
+      cpl_taux=.false.
+      cpl_tauy=.false.
+      cpl_u10=.false.
+      cpl_v10=.false.
+      cpl_wndspd=.false.
+      cpl_ustara=.false.
+      cpl_airtmp=.false.
+      cpl_vapmix=.false.
+      cpl_swflx_net=.false.
+      cpl_lwflx_net=.false.
+      cpl_swflx_net2down=.false.
+      cpl_lwflx_net2down=.false.
+      cpl_swflxd=.false.
+      cpl_lwflxd=.false.
+      cpl_mslprs=.false.
+      cpl_precip=.false.
+      cpl_surtmp=.false.
+      cpl_seatmp=.false.
+      cpl_sbhflx=.false.
+      cpl_lthflx=.false.
+      cpl_sic=.false.
+      cpl_sitx=.false.
+      cpl_sity=.false.
+      cpl_siqs=.false.
+      cpl_sifh=.false.
+      cpl_sifs=.false.
+      cpl_sifw=.false.
+      cpl_sit=.false.
+      cpl_sih=.false.
+      cpl_siu=.false.
+      cpl_siv=.false.
+    endif
 
 
-      if(mnproc.eq.1) print *,"import_hycom end..."
 
-      return
-      end subroutine set_hycom_import_flag
+    if (fieldName .eq. 'taux10') then
+      cpl_taux=.true.
+
+    elseif (fieldName .eq. 'tauy10') then
+      cpl_tauy=.true.
+      if     (.not.cpl_taux) then
+        if (mnproc.eq.1) print *,"error - tauy before taux"
+        call xcstop('(set_hycom_import_flag)')
+               stop '(set_hycom_import_flag)'
+      endif !error
+
+    elseif (fieldName .eq. 'u10') then
+      cpl_u10=.true.
+
+    elseif (fieldName .eq. 'v10') then
+      cpl_v10=.true.
+      if     (.not.cpl_u10) then
+        if (mnproc.eq.1) print *,"error - v10 before u10"
+        call xcstop('(set_hycom_import_flag)')
+               stop '(set_hycom_import_flag)'
+      endif !error
+
+    elseif (fieldName .eq. 'wndspd10') then
+      cpl_wndspd=.true.
+
+    elseif (fieldName .eq. 'ustara10') then
+      cpl_ustara=.true.
+
+    elseif (fieldName .eq. 'airtmp') then
+      cpl_airtmp=.true.
+
+    elseif (fieldName .eq. 'airhum') then
+      cpl_vapmix=.true.
+
+    elseif (fieldName .eq. 'swflx_net') then
+      cpl_swflx_net=.true.
+
+    elseif (fieldName .eq. 'lwflx_net') then
+      cpl_lwflx_net=.true.
+
+    elseif (fieldName .eq. 'swflx_net2down') then
+      cpl_swflx_net2down=.true.
+
+    elseif (fieldName .eq. 'lwflx_net2down') then
+      cpl_lwflx_net2down=.true.
+
+    elseif (fieldName .eq. 'swflxd') then
+      cpl_swflxd=.true.
+
+    elseif (fieldName .eq. 'lwflxd') then
+      cpl_lwflxd=.true.
+    elseif (fieldName .eq. 'mslprs') then
+      cpl_mslprs=.true.
+    elseif (fieldName .eq. 'prcp') then
+      cpl_precip=.true.
+
+    elseif (fieldName .eq. 'gt') then
+      cpl_surtmp=.true.
+      cpl_seatmp=.true.
+
+    elseif (fieldName .eq. 'sbhflx') then
+      cpl_sbhflx=.true.
+
+    elseif (fieldName .eq. 'lthflx') then
+      cpl_lthflx=.true.
+
+    elseif (fieldName .eq. 'sic') then
+!     import ice concentration
+      cpl_sic=.true.
+
+    elseif (fieldName .eq. 'sitx') then
+!     import ice x-stress
+      cpl_sitx=.true.
+
+    elseif (fieldName .eq. 'sity') then
+!     import ice y-stress
+      cpl_sity=.true.
+
+    elseif (fieldName .eq. 'siqs') then
+!     import solar thru grid cell ave.
+      cpl_siqs=.true.
+
+    elseif (fieldName .eq. 'sifh') then
+!     import freeze, melt, H. Flux
+      cpl_sifh=.true.
+
+    elseif (fieldName .eq. 'sifs') then
+!     import salt flux
+      cpl_sifs=.true.
+
+    elseif (fieldName .eq. 'sifw') then
+!     import water flux
+      cpl_sifw=.true.
+
+    elseif (fieldName .eq. 'sit_sfc') then
+!     import sea ice temperature
+      cpl_sit=.true.
+
+    elseif (fieldName .eq. 'sih') then
+!     import sea ice thickness
+      cpl_sih=.true.
+
+    elseif (fieldName .eq. 'siu') then
+!     import sea ice x-velocity
+      cpl_siu=.true.
+
+    elseif (fieldName .eq. 'siv') then
+!     import sea ice y-velocity
+      cpl_siv=.true.
+
+    endif  !if fieldName
+
+
+    if (mnproc.eq.1) print *,"import_hycom end..."
+
+    return
+  end subroutine set_hycom_import_flag
 
 
 !====================================================
-      subroutine export_from_hycom_deb(tlb,tub,expData, &
-        fieldName,show_minmax)
-!      use mod_xc  ! HYCOM communication interface
-!      use mod_cb_arrays
+  subroutine export_from_hycom_deb(tlb,tub,expData, &
+    fieldName,show_minmax)
+!   use mod_xc  ! HYCOM communication interface
+!   use mod_cb_arrays
 
-      implicit none
+    implicit none
 !
-!      integer           k
-!      real              mgrid(ii,jj)
-      integer tlb(2),tub(2)
-      real expData(tlb(1):tub(1),tlb(2):tub(2))
+!   integer           k
+!   real              mgrid(ii,jj)
+    integer tlb(2),tub(2)
+    real expData(tlb(1):tub(1),tlb(2):tub(2))
 
-      character(len=30) fieldName
-      real, allocatable, dimension(:,:) :: ocn_msk
-      real, allocatable, dimension(:,:) :: field_tmp
-      real, allocatable, dimension(:,:) :: tmx
+    character(len=30) fieldName
+    real, allocatable, dimension(:,:) :: ocn_msk
+    real, allocatable, dimension(:,:) :: field_tmp
+    real, allocatable, dimension(:,:) :: tmx
 
-      integer i,j,jja
-      logical show_minmax
+    integer i,j,jja
+    logical show_minmax
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
 
 !
-      if(mnproc.eq.1) print *,"export_from_hycom_deb start..."
-!      print *,"idm,jdm,nbdy,ii,jj=",mnproc,idm,jdm,nbdy,ii,jj
+    if (mnproc.eq.1) print *,"export_from_hycom_deb start..."
+!   print *,"idm,jdm,nbdy,ii,jj=",mnproc,idm,jdm,nbdy,ii,jj
 
-      call export_from_hycom_tiled(util2,fieldName)  !can't use util1
+    call export_from_hycom_tiled(util2,fieldName)  !can't use util1
 
 #if defined(ARCTIC)
 ! --- Arctic (tripole) domain, top row is replicated (ignore it)
-      jja = min( jj, jtdm-1-j0 )
+    jja = min( jj, jtdm-1-j0 )
 #else
-      jja = jj
+    jja = jj
 #endif
 
-      if(fieldName .eq. 'sst' ) then
-        do j=1,jj
-        do i= 1,ii
+    if (fieldName .eq. 'sst') then
+      do j=1, jj
+      do i=1, ii
 #ifndef ESPC_NOCANONICAL_CONVERT
-!           canonical unit conversion: sst (C) -> (K)
-            util2(i,j) = util2(i,j)+273.15d0
+!       canonical unit conversion: sst (C) -> (K)
+        util2(i,j) = util2(i,j)+273.15d0
 #endif
 
-        enddo
-        enddo
-      endif
+      enddo
+      enddo
+    endif
 
-      expData(:,:)=0.
-      do j=1,jja
-      do i=1,ii
-!        mgrid(i,j)=util2(i,j)
-        expData(i+i0,j+j0)=util2(i,j)
+    expData(:,:)=0.
+    do j=1, jja
+    do i=1, ii
+!     mgrid(i,j)=util2(i,j)
+      expData(i+i0,j+j0)=util2(i,j)
+    enddo
+    enddo
+
+
+    if (show_minmax) then
+      if (mnproc.eq.1) then
+        allocate(ocn_msk(itdm,jtdm))
+        allocate(field_tmp(itdm,jtdm))
+      else
+        allocate(ocn_msk(1,1))
+        allocate(field_tmp(1,1))
+      endif
+      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+
+
+!     sea/land mask
+      tmx(:,:)=0.
+      do j=1, jja
+      do i=1, ii
+          tmx(i,j) = ishlf(i,j)
+!x        tmx(i,j) = ip(i,j)
       enddo
       enddo
 
+      call xcaget(ocn_msk,tmx,1)
+!     call xcsync(no_flush)
 
-      if(show_minmax) then
-        if(mnproc.eq.1) then
-          allocate(ocn_msk(itdm,jtdm))
-          allocate(field_tmp(itdm,jtdm))
-        else
-          allocate(ocn_msk(1,1))
-          allocate(field_tmp(1,1))
-        endif
-        allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+      tmx(:,:)=0.
+      do j=1, jja
+      do i=1, ii
+        tmx(i,j) = expData(i+i0,j+j0)
+      enddo
+      enddo
 
+      call xcaget(field_tmp,tmx,1)
+!     call xcsync(no_flush)
 
-!       sea/land mask
-        tmx(:,:)=0.
-        do j= 1,jja
-        do i= 1,ii
-            tmx(i,j) = ishlf(i,j)
-!x            tmx(i,j) = ip(i,j)
-        enddo
-        enddo
+      if (mnproc.eq.1) then
 
-        call xcaget(ocn_msk,tmx,1)
-!        call xcsync(no_flush)
+        write(*,992)trim(fieldName),          &
+        maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
+        minval(field_tmp,MASK=ocn_msk.eq.1 ), &
+        sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
+        count(ocn_msk.eq.1 )
+ 992    format('export_from_hycom_deb,max,min,mean=',A10,3E23.15)
 
-        tmx(:,:)=0.
-        do j= 1,jja
-        do i= 1,ii
-            tmx(i,j) = expData(i+i0,j+j0)
-        enddo
-        enddo
-
-        call xcaget(field_tmp,tmx,1)
-!        call xcsync(no_flush)
-
-        if(mnproc.eq.1) then
-
-          write(*,992)trim(fieldName),          &
-          maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
-          minval(field_tmp,MASK=ocn_msk.eq.1 ), &
-          sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
-          count(ocn_msk.eq.1 )
- 992      format('export_from_hycom_deb,max,min,mean=',A10,3E23.15)
-
-!          write(*,992) trim(fieldName),maxval(mgrid),minval(mgrid)
-! 992      format('export_from_hycom,max,min=',A10,2E12.4)
-           print *,"export_from_hycom_deb end..."
-
-        endif
-
-!       test check pang
-        call xcaget(ocn_msk,pang,1)
-        if(mnproc.eq.1) then
-          print *,'export_from_hycom pang, min,max=', &
-           minval(ocn_msk),maxval(ocn_msk)
-        endif
-
-        if(allocated(ocn_msk)) deallocate(ocn_msk)
-        if(allocated(field_tmp)) deallocate(field_tmp)
-        if(allocated(tmx)) deallocate(tmx)
+!       write(*,992) trim(fieldName),maxval(mgrid),minval(mgrid)
+! 992   format('export_from_hycom,max,min=',A10,2E12.4)
+        print *,"export_from_hycom_deb end..."
 
       endif
 
-      if(mnproc.eq.1) print *,"export_from_hycom_deb end..."
+!     test check pang
+      call xcaget(ocn_msk,pang,1)
+      if (mnproc.eq.1) then
+        print *,'export_from_hycom pang, min,max=', &
+          minval(ocn_msk),maxval(ocn_msk)
+      endif
 
-      return
-      end subroutine export_from_hycom_deb
+      if (allocated(ocn_msk)) deallocate(ocn_msk)
+      if (allocated(field_tmp)) deallocate(field_tmp)
+      if (allocated(tmx)) deallocate(tmx)
+
+    endif
+
+    if (mnproc.eq.1) print *,"export_from_hycom_deb end..."
+
+    return
+  end subroutine export_from_hycom_deb
 
 !==================================================
-      subroutine import_to_hycom_deb(tlb,tub,impData, &
-        fieldName,show_minmax,data_init_flag)
+  subroutine import_to_hycom_deb(tlb,tub,impData, &
+    fieldName,show_minmax,data_init_flag)
 
-!      use mod_xc  ! HYCOM communication interface
-!      use ocn_couple_impexp
-!      use mod_cb_arrays
+!   use mod_xc  ! HYCOM communication interface
+!   use ocn_couple_impexp
+!   use mod_cb_arrays
 
-      implicit none
-!      include 'common_blocks.h'
+    implicit none
+!   include 'common_blocks.h'
 !
-      character(len=30) fieldName
-!      integer           k
-      integer tlb(2),tub(2)
-      real impData(tlb(1):tub(1),tlb(2):tub(2))
+    character(len=30) fieldName
+!   integer           k
+    integer tlb(2),tub(2)
+    real impData(tlb(1):tub(1),tlb(2):tub(2))
 !
-      integer i,j,mcnt
-      real    uij,vij
+    integer i,j,mcnt
+    real    uij,vij
 
-      real, allocatable, dimension(:,:) :: ocn_msk
-      real, allocatable, dimension(:,:) :: field_tmp
-      real, allocatable, dimension(:,:) :: tmx
+    real, allocatable, dimension(:,:) :: ocn_msk
+    real, allocatable, dimension(:,:) :: field_tmp
+    real, allocatable, dimension(:,:) :: tmx
 
-      real, parameter :: sstmin = -1.8
-      real, parameter :: sstmax = 35.0
+    real, parameter :: sstmin = -1.8
+    real, parameter :: sstmax = 35.0
 
-      integer ierr
-      logical show_minmax
-      integer jja
+    integer ierr
+    logical show_minmax
+    integer jja
 
-      real    albw,degtorad
-      logical data_init_flag
+    real    albw,degtorad
+    logical data_init_flag
 
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
-!      if(mnproc.eq.1) print *,"import_to_hycom_deb start...,k,name=",k, &
-!         fieldName
+!   if (mnproc.eq.1) print *,"import_to_hycom_deb start...,k,name=",k, &
+!     fieldName
 
-!      if(k.eq.1 .and. mnproc.eq.1) print *,"w0,w1..=", &
-!          w0,w1,w2,w3
+!   if (k.eq.1 .and. mnproc.eq.1) print *,"w0,w1..=", &
+!     w0,w1,w2,w3
 
 #if defined(ARCTIC)
 ! --- Arctic (tripole) domain, top row is replicated (ignore it)
-      jja = min( jj, jtdm-1-j0 )
+    jja = min( jj, jtdm-1-j0 )
 #else
-      jja = jj
+    jja = jj
 #endif
 
 
-      if(show_minmax) then
-!jc-01262014
-        if(mnproc.eq.1) then
-          allocate(ocn_msk(itdm,jtdm))
-          allocate(field_tmp(itdm,jtdm))
-        else
-          allocate(ocn_msk(1,1))
-          allocate(field_tmp(1,1))
-        endif
+    if (show_minmax) then
+!     jc-01262014
+      if (mnproc.eq.1) then
+        allocate(ocn_msk(itdm,jtdm))
+        allocate(field_tmp(itdm,jtdm))
+      else
+        allocate(ocn_msk(1,1))
+        allocate(field_tmp(1,1))
+      endif
 
-        allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
 
-!       sea/land mask
-        tmx(:,:)=0.
-        do j= 1,jja
-        do i= 1,ii
-          tmx(i,j) = ishlf(i,j)
-!x          tmx(i,j) = ip(i,j)
-        enddo
-        enddo
+!     sea/land mask
+      tmx(:,:)=0.
+      do j=1, jja
+      do i=1, ii
+        tmx(i,j) = ishlf(i,j)
+!x      tmx(i,j) = ip(i,j)
+      enddo
+      enddo
 
-        call xcaget(ocn_msk,tmx,1)
-!        call xcsync(no_flush)
+      call xcaget(ocn_msk,tmx,1)
+!     call xcsync(no_flush)
 
-        tmx(:,:)=0.
-        do j= 1,jja
-        do i= 1,ii
-!          tmx(i,j) = mgrid(i,j)
-          tmx(i,j) = impData(i+i0,j+j0)
-        enddo
-        enddo
+      tmx(:,:)=0.
+      do j=1, jja
+      do i=1, ii
+!       tmx(i,j) = mgrid(i,j)
+        tmx(i,j) = impData(i+i0,j+j0)
+      enddo
+      enddo
 
-        call xcaget(field_tmp,tmx,1)
-!       call mpi_barrier(mpi_comm_hycom,ierr)
-!       call xcsync(no_flush)
+      call xcaget(field_tmp,tmx,1)
+!     call mpi_barrier(mpi_comm_hycom,ierr)
+!     call xcsync(no_flush)
 
-        if(mnproc.eq.1) then
+      if (mnproc.eq.1) then
 
-          write(*,992)trim(fieldName),          &
-          maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
-          minval(field_tmp,MASK=ocn_msk.eq.1 ), &
-          sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
-          count(ocn_msk.eq.1 )
-! 992      format('import_to_hycom_deb,max,min,mean=',A10,3E12.4)
- 992      format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
-
-        endif
-
-        if(allocated(ocn_msk)) deallocate(ocn_msk)
-        if(allocated(field_tmp)) deallocate(field_tmp)
-        if(allocated(tmx)) deallocate(tmx)
+        write(*,992)trim(fieldName),          &
+        maxval(field_tmp,MASK=ocn_msk.eq.1 ), &
+        minval(field_tmp,MASK=ocn_msk.eq.1 ), &
+        sum(field_tmp,MASK=ocn_msk.eq.1 )/    &
+        count(ocn_msk.eq.1 )
+! 992   format('import_to_hycom_deb,max,min,mean=',A10,3E12.4)
+ 992    format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
 
       endif
+
+      if (allocated(ocn_msk)) deallocate(ocn_msk)
+      if (allocated(field_tmp)) deallocate(field_tmp)
+      if (allocated(tmx)) deallocate(tmx)
+
+    endif
 
 
 
@@ -542,755 +542,755 @@
 !==>  import from atm
 !=================================================
 
-      if(fieldName .eq. 'taux10' ) then
+    if (fieldName .eq. 'taux10') then
 
-!       import xstress: Pa
+!     import xstress: Pa
 
 
-        do j=1,jja
-        do i=1,ii
-!          taux(i,j,l0)=mgrid(i,j)
-          if(ishlf(i,j).eq.1) then
-            taux(i,j,l0)=impData(i+i0,j+j0)
-          else
-            taux(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+!       taux(i,j,l0)=mgrid(i,j)
+        if (ishlf(i,j).eq.1) then
+          taux(i,j,l0)=impData(i+i0,j+j0)
+        else
+          taux(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(taux(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
+      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-        call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'tauy10' ) then
+    elseif (fieldName .eq. 'tauy10') then
 
-!       import ystress: Pa
+!     import ystress: Pa
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            tauy(i,j,l0)=impData(i+i0,j+j0)
-          else
-            tauy(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          tauy(i,j,l0)=impData(i+i0,j+j0)
+        else
+          tauy(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
-        do j=1,jja
-        do i=1,ii
+      do j=1, jja
+      do i=1, ii
 
-            uij = taux(i,j,l0)
-            vij = tauy(i,j,l0)
-!           rotate to (x,y)ward
-            taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-            tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-        enddo !i
-        enddo !j
-
-#if defined(ARCTIC)
-        call xctila(taux(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
-        call xctila(tauy(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
-#endif
-        call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-        call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-
-!---
-!=================================================
-
-      else if(fieldName .eq. 'u10' ) then
-
-!       import u wind at 10m height: ms-1
-
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            taux(i,j,l0)=impData(i+i0,j+j0)
-          else
-            taux(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(taux(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
-#endif
-        call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-
-!---
-!=================================================
-
-      else if(fieldName .eq. 'v10' ) then
-
-!       import v wind at 10m height: ms-1
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            tauy(i,j,l0)=impData(i+i0,j+j0)
-          else
-            tauy(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-        do j=1,jja
-        do i=1,ii
           uij = taux(i,j,l0)
           vij = tauy(i,j,l0)
 !         rotate to (x,y)ward
           taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
           tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-        enddo !i
-        enddo !j
+      enddo !i
+      enddo !j
 
 #if defined(ARCTIC)
-        call xctila(taux(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
-        call xctila(tauy(1-nbdy,1-nbdy,l0),1,1,            halo_pv)
+      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-        call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-        call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'wndspd10' ) then
+    elseif (fieldName .eq. 'u10') then
 
-!       import wind speed: m s-1
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            wndspd(i,j,l0)=impData(i+i0,j+j0)
-          else
-            wndspd(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(      wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
-
-!---
-!=================================================
-
-      else if(fieldName .eq. 'ustara10' ) then
-
-!       import friction speed: m s-1
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            ustara(i,j,l0)=impData(i+i0,j+j0)
-          else
-            ustara(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(      ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
-
-!---
-!=================================================
-
-      else if(fieldName .eq. 'airtmp' ) then
-!        cpl_airtmp=.true.
-
-!       import air temperature
-!       canonical unit conversion: airtmp (K) -> (C)
-        do j=1,jja
-        do i=1,ii
-          impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
-        enddo
-        enddo
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            airtmp(i,j,l0)=impData(i+i0,j+j0)
-          else
-            airtmp(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(      airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
-
-!---
-!=================================================
+!     import u wind at 10m height: ms-1
 
 
-      elseif(fieldName .eq. 'airhum' ) then
-
-!       import specific humidity: kg kg-1
-
-!       convert from specific humidity to mixing ratio
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-!!Alex      flxflg.eq.4 => mixing ratio
-            vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
-!!Alex      flxflg.eq.5 => specific humidity
-            if (flxflg.eq.5) vapmix(i,j,l0)=impData(i+i0,j+j0)
-          else
-            vapmix(i,j,l0)=0.01
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(      vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
-
-!---
-!=================================================
-
-
-      else if(fieldName .eq. 'swflx_net' ) then
-
-!       import sw flux: w m-2
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            swflx(i,j,l0)=impData(i+i0,j+j0)
-          else
-            swflx(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-#if defined(ARCTIC)
-        call xctila(      swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
-
-!---
-!=================================================
-
-      else if(fieldName .eq. 'swflx_net2down' &
-            .or. fieldName .eq. 'swflxd' ) then
-
-!       import downward sw flux: w m-2
-
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            swflx(i,j,l0)=impData(i+i0,j+j0)
-          else
-            swflx(i,j,l0)=0.
-          endif
-        enddo
-        enddo
-
-
-
-        if     (albflg.ne.0) then  !swflx is Qswdn
-! ---     use the same method as on forfun.F
-! ---     convert swflx to net shortwave into the ocean
-! ---     shortwave through sea ice is handled separately
-          if     (albflg.eq.1) then
-            do j=1,jja
-            do i=1,ii
-!              if(ishlf(i,j).eq.1) then
-                swflx(i,j,l0) = swflx(i,j,l0)*(1.0-0.09)  !NAVGEM albedo
-!              else
-!                swflx(i,j,l0) = 0.
-!              endif
-            enddo
-            enddo
-          else   !albflg.eq.2
-            degtorad = 4.d0*atan(1.d0)/180.d0
-            do j=1,jja
-            do i=1,ii
-
-! ---           latitudinally-varying ocean albedo (Large and Yeager, 2009)
-! ---           5.8% at the equator and 8% at the poles
-                albw = ( 0.069 - 0.011*cos(2.0*degtorad*plat(i,j) ) )
-!                if(ishlf(i,j).eq.1) then
-                  swflx(i,j,l0) = swflx(i,j,l0)*(1.0-albw)
-!                else
-!                  swflx(i,j,l0) = 0.
-!                endif
-            enddo
-            enddo
-          endif !albflg
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          taux(i,j,l0)=impData(i+i0,j+j0)
+        else
+          taux(i,j,l0)=0.
         endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+#endif
+      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+
+!---
+!=================================================
+
+    elseif (fieldName .eq. 'v10') then
+
+!     import v wind at 10m height: ms-1
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          tauy(i,j,l0)=impData(i+i0,j+j0)
+        else
+          tauy(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+      do j=1, jja
+      do i=1, ii
+        uij = taux(i,j,l0)
+        vij = tauy(i,j,l0)
+!       rotate to (x,y)ward
+        taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+        tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+      enddo !i
+      enddo !j
+
+#if defined(ARCTIC)
+      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+#endif
+      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+
+!---
+!=================================================
+
+    elseif (fieldName .eq. 'wndspd10') then
+
+!     import wind speed: m s-1
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          wndspd(i,j,l0)=impData(i+i0,j+j0)
+        else
+          wndspd(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+#if defined(ARCTIC)
+      call xctila(wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'lwflx_net' ) then
+    elseif (fieldName .eq. 'ustara10') then
 
-!       import lw flux: w m-2
-!       canonical unit conversion: lwflx_net (upward) -> (downward)
-        do j=1,jja
-        do i=1,ii
-          impData(i+i0,j+j0)=impData(i+i0,j+j0)*(-1.)
-        enddo
-        enddo
+!     import friction speed: m s-1
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            lwflx(i,j,l0)=impData(i+i0,j+j0)
-          else
-            lwflx(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          ustara(i,j,l0)=impData(i+i0,j+j0)
+        else
+          ustara(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'lwflx_net2down' &
-            .or. fieldName .eq. 'lwflxd' ) then
+    elseif (fieldName .eq. 'airtmp') then
+!     cpl_airtmp=.true.
 
-!       import downward lw flux: w m-2
-!       +ve into ocean
+!     import air temperature
+!     canonical unit conversion: airtmp (K) -> (C)
+      do j=1, jja
+      do i=1, ii
+        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
+      enddo
+      enddo
 
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            lwflx(i,j,l0)=impData(i+i0,j+j0)
-          else
-            lwflx(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          airtmp(i,j,l0)=impData(i+i0,j+j0)
+        else
+          airtmp(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 !---
 !=================================================
 
 
-      else if(fieldName .eq. 'prcp' ) then
+    elseif (fieldName .eq. 'airhum') then
 
-!       import precip: m s-1
-!       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
-        do j=1,jja
-        do i=1,ii
-          impData(i+i0,j+j0)=impData(i+i0,j+j0)*(0.001)
+!     import specific humidity: kg kg-1
 
-        enddo
-        enddo
+!     convert from specific humidity to mixing ratio
 
-
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            precip(i,j,l0)=impData(i+i0,j+j0)
-          else
-            precip(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+!!Alex    flxflg.eq.4 => mixing ratio
+          vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+!!Alex    flxflg.eq.5 => specific humidity
+          if (flxflg.eq.5) vapmix(i,j,l0)=impData(i+i0,j+j0)
+        else
+          vapmix(i,j,l0)=0.01
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      precip(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'gt' ) then
-!       canonical unit conversion: gt (K) -> (C)
-        do j=1,jja
-        do i=1,ii
-          impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
-        enddo
-        enddo
 
+    elseif (fieldName .eq. 'swflx_net') then
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            surtmp(i,j,l0)=impData(i+i0,j+j0)
-          else
-            surtmp(i,j,l0)=0.
-          endif
-        enddo
-        enddo
+!     import sw flux: w m-2
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          swflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          swflx(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 
+!---
+!=================================================
 
-        if     (sstflg.ne.3) then  !use atmos. sst as "truth"
-          do j=1,jja
-          do i=1,ii
+    elseif (fieldName .eq. 'swflx_net2down' &
+      .or. fieldName .eq. 'swflxd') then
 
-              seatmp(i,j,l0) = max( sstmin, &
-                  min(surtmp(i,j,l0), sstmax ) )
+!     import downward sw flux: w m-2
+
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          swflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          swflx(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+
+
+      if (albflg.ne.0) then  !swflx is Qswdn
+! ---   use the same method as on forfun.F
+! ---   convert swflx to net shortwave into the ocean
+! ---   shortwave through sea ice is handled separately
+        if (albflg.eq.1) then
+          do j=1, jja
+          do i=1, ii
+!           if (ishlf(i,j).eq.1) then
+              swflx(i,j,l0) = swflx(i,j,l0)*(1.0-0.09)  !NAVGEM albedo
+!           else
+!             swflx(i,j,l0) = 0.
+!           endif
           enddo
           enddo
-#if defined(ARCTIC)
-          call xctila(      seatmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
-#endif
+        else   !albflg.eq.2
+          degtorad = 4.d0*atan(1.d0)/180.d0
+          do j=1, jja
+          do i=1, ii
 
-        endif
+! ---       latitudinally-varying ocean albedo (Large and Yeager, 2009)
+! ---       5.8% at the equator and 8% at the poles
+            albw = ( 0.069 - 0.011*cos(2.0*degtorad*plat(i,j) ) )
+!           if (ishlf(i,j).eq.1) then
+              swflx(i,j,l0) = swflx(i,j,l0)*(1.0-albw)
+!           else
+!             swflx(i,j,l0) = 0.
+!           endif
+          enddo
+          enddo
+        endif !albflg
+      endif
+
+#if defined(ARCTIC)
+      call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
 
 !---
 !=================================================
 
-      else if(fieldName .eq. 'mslprs' ) then
-!       import sea level pressure anomaly: Pa
+    elseif (fieldName .eq. 'lwflx_net') then
 
+!     import lw flux: w m-2
+!     canonical unit conversion: lwflx_net (upward) -> (downward)
+      do j=1, jja
+      do i=1, ii
+        impData(i+i0,j+j0)=impData(i+i0,j+j0)*(-1.)
+      enddo
+      enddo
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            mslprs(i,j,l0)=impData(i+i0,j+j0)
-          else
-            mslprs(i,j,l0)=1000.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          lwflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          lwflx(i,j,l0)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      mslprs(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
-        call xctilr(mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
+
+!---
+!=================================================
+
+    elseif (fieldName .eq. 'lwflx_net2down' &
+      .or. fieldName .eq. 'lwflxd') then
+
+!     import downward lw flux: w m-2
+!     +ve into ocean
+
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          lwflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          lwflx(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+#if defined(ARCTIC)
+      call xctila(lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
+
+!---
+!=================================================
+
+
+    elseif (fieldName .eq. 'prcp') then
+
+!     import precip: m s-1
+!     canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
+      do j=1, jja
+      do i=1, ii
+        impData(i+i0,j+j0)=impData(i+i0,j+j0)*(0.001)
+
+      enddo
+      enddo
+
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          precip(i,j,l0)=impData(i+i0,j+j0)
+        else
+          precip(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+#if defined(ARCTIC)
+      call xctila(precip(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
+
+!---
+!=================================================
+
+    elseif (fieldName .eq. 'gt') then
+!     canonical unit conversion: gt (K) -> (C)
+      do j=1, jja
+      do i=1, ii
+        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
+      enddo
+      enddo
+
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          surtmp(i,j,l0)=impData(i+i0,j+j0)
+        else
+          surtmp(i,j,l0)=0.
+        endif
+      enddo
+      enddo
+
+#if defined(ARCTIC)
+      call xctila(surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
+
+
+      if (sstflg.ne.3) then  !use atmos. sst as "truth"
+        do j=1, jja
+        do i=1, ii
+
+          seatmp(i,j,l0) = max( sstmin, &
+            min(surtmp(i,j,l0), sstmax ) )
+        enddo
+        enddo
+#if defined(ARCTIC)
+        call xctila(seatmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
+
+      endif
+
+!---
+!=================================================
+
+    elseif (fieldName .eq. 'mslprs') then
+!     import sea level pressure anomaly: Pa
+
+
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          mslprs(i,j,l0)=impData(i+i0,j+j0)
+        else
+          mslprs(i,j,l0)=1000.
+        endif
+      enddo
+      enddo
+
+#if defined(ARCTIC)
+      call xctila(mslprs(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
+      call xctilr(mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
 
 
 !---
 !=================================================
 
 !==>    import from sea ice
-      else if(fieldName .eq. 'sic' ) then
-!       import ice concentration
+    elseif (fieldName .eq. 'sic') then
+!     import ice concentration
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sic_import(i,j)=impData(i+i0,j+j0)
-          else
-            sic_import(i,j)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sic_import(i,j)=impData(i+i0,j+j0)
+        else
+          sic_import(i,j)=0.
+        endif
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      sic_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sic_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sitx' ) then
-!       import ice x-stress
+    elseif (fieldName .eq. 'sitx') then
+!     import ice x-stress
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sitx_import(i,j)=impData(i+i0,j+j0)
-          else
-            sitx_import(i,j)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sitx_import(i,j)=impData(i+i0,j+j0)
+        else
+          sitx_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sitx_import(1-nbdy,1-nbdy),1,1,halo_pv)
+      call xctila(sitx_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
 
-      else if(fieldName .eq. 'sity' ) then
-!       import ice y-stress
+    elseif (fieldName .eq. 'sity') then
+!     import ice y-stress
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sity_import(i,j)=impData(i+i0,j+j0)
-          else
-            sity_import(i,j)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sity_import(i,j)=impData(i+i0,j+j0)
+        else
+          sity_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sity_import(1-nbdy,1-nbdy),1,1,halo_pv)
+      call xctila(sity_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
 
-      else if(fieldName .eq. 'siqs' ) then
-!       import solar thru grid cell ave.
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            siqs_import(i,j)=impData(i+i0,j+j0)
-          else
-            siqs_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'siqs') then
+!     import solar thru grid cell ave.
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          siqs_import(i,j)=impData(i+i0,j+j0)
+        else
+          siqs_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      siqs_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(siqs_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sifh' ) then
-!       import freeze, melt, H. Flux
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sifh_import(i,j)=impData(i+i0,j+j0)
-          else
-            sifh_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'sifh') then
+!     import freeze, melt, H. Flux
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sifh_import(i,j)=impData(i+i0,j+j0)
+        else
+          sifh_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sifh_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sifh_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sifs' ) then
-!       import salt flux
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sifs_import(i,j)=impData(i+i0,j+j0)
-          else
-            sifs_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'sifs') then
+!     import salt flux
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sifs_import(i,j)=impData(i+i0,j+j0)
+        else
+          sifs_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sifs_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sifs_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sifw' ) then
-!       import water flux
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sifw_import(i,j)=impData(i+i0,j+j0)
-          else
-            sifw_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'sifw') then
+!     import water flux
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sifw_import(i,j)=impData(i+i0,j+j0)
+        else
+          sifw_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sifw_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sifw_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sit_sfc' ) then
-!       import sea ice temperature
+    elseif (fieldName .eq. 'sit_sfc') then
+!     import sea ice temperature
 #ifndef ESPC_NOCANONICAL_CONVERT
-!       canonical unit conversion: sit_sfc (K) -> (C)
-        do j=1,jja
-        do i=1,ii
-          impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15d0
-        enddo
-        enddo
+!     canonical unit conversion: sit_sfc (K) -> (C)
+      do j=1, jja
+      do i=1, ii
+        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15d0
+      enddo
+      enddo
 #endif
 
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sit_import(i,j)=impData(i+i0,j+j0)
-          else
-            sit_import(i,j)=0.
-          endif
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sit_import(i,j)=impData(i+i0,j+j0)
+        else
+          sit_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sit_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sit_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'sih' ) then
-!       import sea ice thickness
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            sih_import(i,j)=impData(i+i0,j+j0)
-          else
-            sih_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'sih') then
+!     import sea ice thickness
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          sih_import(i,j)=impData(i+i0,j+j0)
+        else
+          sih_import(i,j)=0.
+        endif
+      enddo
+      enddo
 #if defined(ARCTIC)
-        call xctila(      sih_import(1-nbdy,1-nbdy),1,1,halo_ps)
+      call xctila(sih_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
 
-      else if(fieldName .eq. 'siu' ) then
-!       import sea ice x-velocity
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            siu_import(i,j)=impData(i+i0,j+j0)
-          else
-            siu_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'siu') then
+!     import sea ice x-velocity
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          siu_import(i,j)=impData(i+i0,j+j0)
+        else
+          siu_import(i,j)=0.
+        endif
+      enddo
+      enddo
 
-      else if(fieldName .eq. 'siv' ) then
-!       import sea ice y-velocity
-        do j=1,jja
-        do i=1,ii
-          if(ishlf(i,j).eq.1) then
-            siv_import(i,j)=impData(i+i0,j+j0)
-          else
-            siv_import(i,j)=0.
-          endif
-        enddo
-        enddo
+    elseif (fieldName .eq. 'siv') then
+!     import sea ice y-velocity
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          siv_import(i,j)=impData(i+i0,j+j0)
+        else
+          siv_import(i,j)=0.
+        endif
+      enddo
+      enddo
 
 #ifndef ESPC_NOCANONICAL_CONVERT
-! ---   rotate to (x,y)ward
+! --- rotate to (x,y)ward
 
-        do j=1,jja
-        do i=1,ii
-          uij = siu_import(i,j)
-          vij = siv_import(i,j)
-!         rotate to (x,y)ward
-          siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-          siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-        enddo !i
-        enddo !j
+      do j=1, jja
+      do i=1, ii
+        uij = siu_import(i,j)
+        vij = siv_import(i,j)
+!       rotate to (x,y)ward
+        siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+        siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+      enddo !i
+      enddo !j
 #endif
 
 
 #if defined(ARCTIC)
-        call xctila(      siu_import(1-nbdy,1-nbdy),1,1,halo_pv)
-        call xctila(      siv_import(1-nbdy,1-nbdy),1,1,halo_pv)
+      call xctila(siu_import(1-nbdy,1-nbdy),1,1,halo_pv)
+      call xctila(siv_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
 
 
-      endif  !if fieldName
+    endif  !if fieldName
 
 
 
-      if(mnproc.eq.1) print *,"import_hycom_deb end..."
+    if (mnproc.eq.1) print *,"import_hycom_deb end..."
 
-      return
-      end subroutine import_to_hycom_deb
+    return
+  end subroutine import_to_hycom_deb
 !================================
-      subroutine ocn_import_forcing()
+  subroutine ocn_import_forcing()
 
-!      include 'common_blocks.h'
-!!Alex      use mod_cb_arrays
+!   include 'common_blocks.h'
+!!Alex    use mod_cb_arrays
 
-      integer i,j,m,n,jja
+    integer i,j,m,n,jja
 
 #if defined(ARCTIC)
 ! --- Arctic (tripole) domain, top row is replicated (ignore it)
-      jja = min( jj, jtdm-1-j0 )
+    jja = min( jj, jtdm-1-j0 )
 #else
-      jja = jj
+    jja = jj
 #endif
 
-      if (lwflag.eq.2) then
-!       radflx is defined as net lwflx+swflx, +ve into ocean
+    if (lwflag.eq.2) then
+!     radflx is defined as net lwflx+swflx, +ve into ocean
 
-        do j=1,jja
-        do i= 1,ii
-          radflx(i,j,l0)=lwflx(i,j,l0)+swflx(i,j,l0)
-        enddo
-        enddo
+      do j=1, jja
+      do i=1, ii
+        radflx(i,j,l0)=lwflx(i,j,l0)+swflx(i,j,l0)
+      enddo
+      enddo
 
 #if defined(ARCTIC)
-        call xctila(      radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
-      else
-        if(mnproc.eq.1) print *,"error - lwflag .ne. 2"
-        call xcstop('(ocn_import_forcing)')
-               stop '(ocn_import_forcing)'
-      endif
+    else
+      if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
+      call xcstop('(ocn_import_forcing)')
+             stop '(ocn_import_forcing)'
+    endif
 
-      if(.not.cpl_sic  .or. .not.cpl_sitx .or. .not.cpl_sity .or. &
-          .not.cpl_siqs .or. .not.cpl_sifh .or.                   &
-          .not.cpl_sifs .or. .not.cpl_sifw .or.                   &
-          .not.cpl_sit  .or. .not.cpl_sih  .or.                   &
-          .not.cpl_siu  .or. .not. cpl_siv) then
+    if (.not.cpl_sic  .or. .not.cpl_sitx .or. .not.cpl_sity .or. &
+        .not.cpl_siqs .or. .not.cpl_sifh .or.                   &
+        .not.cpl_sifs .or. .not.cpl_sifw .or.                   &
+        .not.cpl_sit  .or. .not.cpl_sih  .or.                   &
+        .not.cpl_siu  .or. .not. cpl_siv) then
 
-         if(mnproc.eq.1) print *, &
-         'warning... no feedback from CICE to HYCOM(ocn_import_forcing)'
-         return
+       if (mnproc.eq.1) print *, &
+       'warning... no feedback from CICE to HYCOM(ocn_import_forcing)'
+       return
 
-      endif
-      do j=1,jja
-      do i= 1,ii
+    endif
+    do j=1, jja
+    do i=1, ii
 
 
-      if(ishlf(i,j).eq.1) then  !standard ocean point
+    if (ishlf(i,j).eq.1) then  !standard ocean point
 
-        if     (iceflg.ge.2 .and. icmflg.ne.3) then
-          covice(i,j) = sic_import(i,j) !Sea Ice Concentration
-          si_c(i,j) = sic_import(i,j) !Sea Ice Concentration
-          if     (covice(i,j).gt.0.0) then
-             si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-             si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-            fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
-            flxice(i,j) =  fswice(i,j) + &
-                           sifh_import(i,j) !Ice Freezing/Melting Heat Flux
-            sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
-            wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
-            temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
-              si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-            thkice(i,j) =   sih_import(i,j) !Sea Ice Thickness
-              si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-              si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-              si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-          else
-             si_tx(i,j) = 0.0
-             si_ty(i,j) = 0.0
-            fswice(i,j) = 0.0
-            flxice(i,j) = 0.0
-            sflice(i,j) = 0.0
-            wflice(i,j) = 0.0
-            temice(i,j) = 0.0
-              si_t(i,j) = 0.0
-            thkice(i,j) = 0.0
-              si_h(i,j) = 0.0
-              si_u(i,j) = 0.0
-              si_v(i,j) = 0.0
-          endif !covice
+      if (iceflg.ge.2 .and. icmflg.ne.3) then
+        covice(i,j) = sic_import(i,j) !Sea Ice Concentration
+        si_c(i,j) = sic_import(i,j) !Sea Ice Concentration
+        if (covice(i,j).gt.0.0) then
+           si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
+           si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
+          fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
+          flxice(i,j) =  fswice(i,j) + &
+                         sifh_import(i,j) !Ice Freezing/Melting Heat Flux
+          sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
+          wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
+          temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
+            si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
+          thkice(i,j) =   sih_import(i,j) !Sea Ice Thickness
+            si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
+            si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
+            si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
+        else
+           si_tx(i,j) = 0.0
+           si_ty(i,j) = 0.0
+          fswice(i,j) = 0.0
+          flxice(i,j) = 0.0
+          sflice(i,j) = 0.0
+          wflice(i,j) = 0.0
+          temice(i,j) = 0.0
+            si_t(i,j) = 0.0
+          thkice(i,j) = 0.0
+            si_h(i,j) = 0.0
+            si_u(i,j) = 0.0
+            si_v(i,j) = 0.0
+        endif !covice
 
-        elseif (iceflg.ge.2 .and. icmflg.eq.3) then
-           si_c(i,j) =  sic_import(i,j) !Sea Ice Concentration
-           if     (si_c(i,j).gt.0.0) then
-             si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-             si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-              si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-              si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-              si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-              si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-           else
-             si_tx(i,j) = 0.0
-             si_ty(i,j) = 0.0
-              si_h(i,j) = 0.0
-              si_t(i,j) = 0.0
-              si_u(i,j) = 0.0
-              si_v(i,j) = 0.0
-           endif !covice
-        endif !iceflg>=2 (icmflg)
+      elseif (iceflg.ge.2 .and. icmflg.eq.3) then
+         si_c(i,j) =  sic_import(i,j) !Sea Ice Concentration
+         if (si_c(i,j).gt.0.0) then
+           si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
+           si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
+            si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
+            si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
+            si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
+            si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
+         else
+           si_tx(i,j) = 0.0
+           si_ty(i,j) = 0.0
+            si_h(i,j) = 0.0
+            si_t(i,j) = 0.0
+            si_u(i,j) = 0.0
+            si_v(i,j) = 0.0
+         endif !covice
+      endif !iceflg>=2 (icmflg)
 
-      endif ! if(ishlf
-      enddo
-      enddo
+    endif ! if (ishlf
+    enddo
+    enddo
 
 
 #if defined(ARCTIC)
 
 ! --- update last active row of array
-!jcx     call xctila( sic_import,1,1,halo_ps)  !Sea Ice Concentration
+!jcx      call xctila( sic_import,1,1,halo_ps)  !Sea Ice Concentration
 !jcx      call xctila(sitx_import,1,1,halo_pv)  !Sea Ice X-Stress
 !jcx      call xctila(sity_import,1,1,halo_pv)  !Sea Ice Y-Stress
 !jcx      call xctila(siqs_import,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
@@ -1302,77 +1302,77 @@
 !jcx      call xctila( siu_import,1,1,halo_pv)  !Sea Ice X-Velocity
 !jcx      call xctila( siv_import,1,1,halo_pv)  !Sea Ice Y-Velocity
 
-      if     (iceflg.ge.2 .and. icmflg.ne.3) then
-        call xctila(covice,1,1,halo_ps)  !Sea Ice Concentration
-        call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
-        call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
-        call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
-        call xctila(fswice,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
-        call xctila(flxice,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
-        call xctila(sflice,1,1,halo_ps)  !Ice Salt Flux
-        call xctila(wflice,1,1,halo_ps)  !Ice Freshwater Flux
-        call xctila(temice,1,1,halo_ps)  !Sea Ice Temperature
-        call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
-        call xctila(thkice,1,1,halo_ps)  !Sea Ice Thickness
-        call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
-        call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
-        call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
-      elseif (iceflg.ge.2 .and. icmflg.eq.3) then
-        call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
-        call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
-        call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
-        call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
-        call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
-        call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
-        call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
-      endif
+    if (iceflg.ge.2 .and. icmflg.ne.3) then
+      call xctila(covice,1,1,halo_ps)  !Sea Ice Concentration
+      call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
+      call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
+      call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
+      call xctila(fswice,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
+      call xctila(flxice,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
+      call xctila(sflice,1,1,halo_ps)  !Ice Salt Flux
+      call xctila(wflice,1,1,halo_ps)  !Ice Freshwater Flux
+      call xctila(temice,1,1,halo_ps)  !Sea Ice Temperature
+      call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
+      call xctila(thkice,1,1,halo_ps)  !Sea Ice Thickness
+      call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
+      call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
+      call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
+    elseif (iceflg.ge.2 .and. icmflg.eq.3) then
+      call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
+      call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
+      call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
+      call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
+      call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
+      call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
+      call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
+    endif
 
 
 #endif
 ! --- Smooth Sea Ice velocity fields
-      call psmooth(si_u,0,0,ishlf,util1)
-      call psmooth(si_v,0,0,ishlf,util1)
+    call psmooth(si_u,0,0,ishlf,util1)
+    call psmooth(si_v,0,0,ishlf,util1)
 
 #if defined(ARCTIC)
-      call xctila(si_u,1,1,halo_pv)
-      call xctila(si_v,1,1,halo_pv)
+    call xctila(si_u,1,1,halo_pv)
+    call xctila(si_v,1,1,halo_pv)
 #endif
-!      call xctilr(si_u,1,1, nbdy,nbdy, halo_pv)
-!      call xctilr(si_v,1,1, nbdy,nbdy, halo_pv)
+!   call xctilr(si_u,1,1, nbdy,nbdy, halo_pv)
+!   call xctilr(si_v,1,1, nbdy,nbdy, halo_pv)
 
 ! --- copy back from si_ to _import for archive_ice
-      do j= 1,jja
-      do i= 1,ii
-          if     (si_c(i,j).gt.0.0) then
-            siu_import(i,j) = si_u(i,j) !Sea Ice X-Velocity
-            siv_import(i,j) = si_v(i,j) !Sea Ice Y-Velocity
-          endif !si_c
-      enddo !i
-      enddo !j
+    do j=1, jja
+    do i=1, ii
+      if (si_c(i,j).gt.0.0) then
+        siu_import(i,j) = si_u(i,j) !Sea Ice X-Velocity
+        siv_import(i,j) = si_v(i,j) !Sea Ice Y-Velocity
+      endif !si_c
+    enddo !i
+    enddo !j
 
-      end subroutine ocn_import_forcing
+  end subroutine ocn_import_forcing
 
-      subroutine hycom_couple_final()
+  subroutine hycom_couple_final()
 
-      if(allocated(deBList)) deallocate(deBList)
-      if (allocated(lon_p)) deallocate(lon_p)
-      if (allocated(lat_p)) deallocate(lat_p)
-      if (allocated(area_p)) deallocate(area_p)
-      if (allocated(mask_p)) deallocate(mask_p)
-      if (allocated(lon_q)) deallocate(lon_q)
-      if (allocated(lat_q)) deallocate(lat_q)
-      if (allocated(area_q)) deallocate(area_q)
-      if (allocated(mask_q)) deallocate(mask_q)
+    if (allocated(deBList)) deallocate(deBList)
+    if (allocated(lon_p)) deallocate(lon_p)
+    if (allocated(lat_p)) deallocate(lat_p)
+    if (allocated(area_p)) deallocate(area_p)
+    if (allocated(mask_p)) deallocate(mask_p)
+    if (allocated(lon_q)) deallocate(lon_q)
+    if (allocated(lat_q)) deallocate(lat_q)
+    if (allocated(area_q)) deallocate(area_q)
+    if (allocated(mask_q)) deallocate(mask_q)
 
 
 
-      return
-      end subroutine hycom_couple_final
+    return
+  end subroutine hycom_couple_final
 
 
 
 !========================================================
 
-      end module hycom_couple
+end module hycom_couple
 
 !========================================================
