@@ -1,13 +1,18 @@
-!===================================================
-!subroutine readHycomLatLon(plat,plon,itdm,jtdm)
+!===============================================================================
+! DESCRIPTION:
+!   This subroutine reads HYCOM latitude and longitude coordinates from
+!   regional.grid.a file.
+!
+! SUBROUTINES:
+!   readHycomLatLon
+!     Read latitude and longitude coordinates from regional.grid.a file.
+!
+!===============================================================================
 subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
-
   implicit none
-
   REAL*4 plat(itdm,jtdm),plon(itdm,jtdm)
   REAL*4 qlat(itdm,jtdm),qlon(itdm,jtdm)
   REAL*4, allocatable :: pad(:)
-
   integer npad
   integer ios,nrecl
   integer i,j
@@ -18,7 +23,6 @@ subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
 
   npad = 4096 - MOD(itdm*jtdm,4096)
   if (npad.eq.4096) npad=0
-
   allocate(pad(npad))
 
   INQUIRE(IOLENGTH=nrecl) plon,pad
@@ -26,10 +30,8 @@ subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
 ! print *, "npad=", npad
 ! print *, "nrecl=", nrecl
 
-
   open(unit=11, file=cfilea, form='unformatted', status='old', &
     access='direct', recl=nrecl, iostat=ios)
-
 
   IF (ios.ne.0) THEN
     print *, "error in reading regional.grid.a"
@@ -72,7 +74,6 @@ subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
   print *, 'readHycomLatLon,plon, min,max=', &
     minval(plon),maxval(plon)
 
-
 ! print *, "**** readHycomLatLon, lat_hycom ***"
 ! do j=1, jtdm
 !   print *, "j=", j
@@ -86,10 +87,7 @@ subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
 ! enddo
 ! 12   format(10F12.5/(10F12.5))
 
-
   if (allocated(pad)) deallocate(pad)
 
   return
 end subroutine readHycomLatLon
-
-
