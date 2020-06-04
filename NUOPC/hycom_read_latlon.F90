@@ -5,12 +5,13 @@
 
       subroutine get_coord(lat_p,lon_p,area_p, &
                            lat_q,lon_q,area_q, &
-                           itdm,jtdm)
+                           itdm,jtdm,rc)
       implicit none
 
       real, dimension(itdm,jtdm), intent(inout) :: lat_p, lon_p
       real, dimension(itdm,jtdm), intent(inout) :: lat_q, lon_q
       real, dimension(itdm,jtdm), intent(inout) :: area_p, area_q
+      integer, intent(out) :: rc
       real*4, dimension(itdm,jtdm) :: tmp1, tmp2
       real*4, allocatable :: pad(:)
 
@@ -19,6 +20,8 @@
       integer :: i,j
       character(len=240) :: cfilea
       integer :: itdm,jtdm
+
+      rc = 0 ! success
 
       cfilea = 'regional.grid.a'
 

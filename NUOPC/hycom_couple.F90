@@ -31,72 +31,98 @@ module hycom_couple
 !===============================================================================
   use mod_xc  ! HYCOM communication interface
   use mod_cb_arrays
-  use hycom_read_latlon
+  use hycom_read_latlon, only: get_coord
 
+!===============================================================================
+! settings
+!===============================================================================
   implicit none
+
+  private
+
+!===============================================================================
+! public
+!===============================================================================
+  public :: hycom_couple_init
+  public :: set_hycom_import_flag
+  public :: export_from_hycom_deb
+  public :: import_to_hycom_deb
+  public :: ocn_import_forcing
+  public :: hycom_couple_final
+  public :: cpldom_type
+  public :: cpldom
 
 !===============================================================================
 ! module variables
 !===============================================================================
-  integer idim_size,jdim_size
-  integer, dimension(:,:,:), allocatable :: deBList
-  real, dimension(:,:), allocatable :: lon_p
-  real, dimension(:,:), allocatable :: lat_p
-  real, dimension(:,:), allocatable :: mask_p
-  real, dimension(:,:), allocatable :: area_p
-  real, dimension(:,:), allocatable :: lon_q
-  real, dimension(:,:), allocatable :: lat_q
-  real, dimension(:,:), allocatable :: mask_q
-  real, dimension(:,:), allocatable :: area_q
+  type cpldom_type
+    integer              :: idim_size
+    integer              :: jdim_size
+    integer, allocatable :: deBList(:,:,:)
+    real, allocatable    :: lon_p(:,:)
+    real, allocatable    :: lat_p(:,:)
+    real, allocatable    :: mask_p(:,:)
+    real, allocatable    :: area_p(:,:)
+    real, allocatable    :: lon_q(:,:)
+    real, allocatable    :: lat_q(:,:)
+    real, allocatable    :: mask_q(:,:)
+    real, allocatable    :: area_q(:,:)
+  end type cpldom_type
+
+  type(cpldom_type) :: cpldom
 
 !===============================================================================
   contains
 !===============================================================================
-  subroutine hycom_couple_init(nPets,rc)
-    implicit none
-    real, allocatable, dimension(:,:) :: tmx
-    real, allocatable, dimension(:,:) :: tmp_e
-    integer i,j,rc
-    integer nPets
+  subroutine hycom_couple_init(nPets, rc)
+!   arguments
+    integer, intent(in)  :: nPets
+    integer, intent(out) :: rc
+!   local variables
+    character(*), parameter :: rname="hycom_couple_init"
+    real, allocatable       :: tmx(:,:)
+    real, allocatable       :: tmp_e(:,:)
+    integer                 :: i, j
 
-    if (mnproc.eq.1) print *,"hycom_couple_init called..."
-    rc=0
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start..."
 
 !   grid size
-    idim_size=itdm
-    jdim_size=jtdm
+    cpldom%idim_size=itdm
+    cpldom%jdim_size=jtdm
 
 !   deBlockList
 !   directly from HYCOM
 
 #ifdef ESPC_COUPLE
-    IF (.not.allocated(deBList)) THEN
-      allocate (deBList(2,2,nPets))
+    IF (.not.allocated(cpldom%deBList)) THEN
+      allocate (cpldom%deBList(2,2,nPets))
     ENDIF
 
 !   should be something like the following
 !   do ij=1,nPets
-!     deBList(1,1,ij)=1+i0
-!     deBList(2,1,ij)=1+j0
-!     deBList(1,2,ij)=ii+i0
-!     deBList(2,2,ij)=jj+j0
+!     cpldom%deBList(1,1,ij)=1+i0
+!     cpldom%deBList(2,1,ij)=1+j0
+!     cpldom%deBList(1,2,ij)=ii+i0
+!     cpldom%deBList(2,2,ij)=jj+j0
 !   enddo
 
     do i=1,nPets
-      deBList(1,1,i)=deBlockList(1,1,i)
-      deBList(2,1,i)=deBlockList(2,1,i)
-      deBList(1,2,i)=deBlockList(1,2,i)
-      deBList(2,2,i)=deBlockList(2,2,i)
+      cpldom%deBList(1,1,i)=deBlockList(1,1,i)
+      cpldom%deBList(2,1,i)=deBlockList(2,1,i)
+      cpldom%deBList(1,2,i)=deBlockList(1,2,i)
+      cpldom%deBList(2,2,i)=deBlockList(2,2,i)
     enddo
 
     if (mnproc.eq.1) then
       print *,'itdm,jtdm=',itdm,jtdm
       print *,'hycom,deBList BL11 BL21 BL12 BL22'
       do i =1,nPets
-        write(*,555)i,deBList(1,1,i),deBList(2,1,i), &
-          deBList(1,2,i),deBList(2,2,i),             &
-          deBList(1,2,i)-deBList(1,1,i)+1,           &
-          deBList(2,2,i)-deBList(2,1,i)+1
+        write(*,555)i,cpldom%deBList(1,1,i),cpldom%deBList(2,1,i), &
+          cpldom%deBList(1,2,i),cpldom%deBList(2,2,i),             &
+          cpldom%deBList(1,2,i)-cpldom%deBList(1,1,i)+1,           &
+          cpldom%deBList(2,2,i)-cpldom%deBList(2,1,i)+1
 
       enddo
     endif
@@ -105,32 +131,33 @@ module hycom_couple
 
     ! allocate arrays
     if (mnproc.eq.1) then
-      if (.not. allocated(lon_p)) allocate(lon_p(itdm,jtdm))
-      if (.not. allocated(lat_p)) allocate(lat_p(itdm,jtdm))
-      if (.not. allocated(area_p)) allocate(area_p(itdm,jtdm))
-      if (.not. allocated(mask_p)) allocate(mask_p(itdm,jtdm))
-      if (.not. allocated(lon_q)) allocate(lon_q(itdm,jtdm))
-      if (.not. allocated(lat_q)) allocate(lat_q(itdm,jtdm))
-      if (.not. allocated(area_q)) allocate(area_q(itdm,jtdm))
-      if (.not. allocated(mask_q)) allocate(mask_q(itdm,jtdm))
+      if (.not.allocated(cpldom%lon_p)) allocate(cpldom%lon_p(itdm,jtdm))
+      if (.not.allocated(cpldom%lat_p)) allocate(cpldom%lat_p(itdm,jtdm))
+      if (.not.allocated(cpldom%area_p)) allocate(cpldom%area_p(itdm,jtdm))
+      if (.not.allocated(cpldom%mask_p)) allocate(cpldom%mask_p(itdm,jtdm))
+      if (.not.allocated(cpldom%lon_q)) allocate(cpldom%lon_q(itdm,jtdm))
+      if (.not.allocated(cpldom%lat_q)) allocate(cpldom%lat_q(itdm,jtdm))
+      if (.not.allocated(cpldom%area_q)) allocate(cpldom%area_q(itdm,jtdm))
+      if (.not.allocated(cpldom%mask_q)) allocate(cpldom%mask_q(itdm,jtdm))
     else
-      if (.not. allocated(lon_p)) allocate(lon_p(1,1))
-      if (.not. allocated(lat_p)) allocate(lat_p(1,1))
-      if (.not. allocated(area_p)) allocate(area_p(1,1))
-      if (.not. allocated(mask_p)) allocate(mask_p(1,1))
-      if (.not. allocated(lon_q)) allocate(lon_q(1,1))
-      if (.not. allocated(lat_q)) allocate(lat_q(1,1))
-      if (.not. allocated(area_q)) allocate(area_q(1,1))
-      if (.not. allocated(mask_q)) allocate(mask_q(1,1))
+      if (.not.allocated(cpldom%lon_p)) allocate(cpldom%lon_p(1,1))
+      if (.not.allocated(cpldom%lat_p)) allocate(cpldom%lat_p(1,1))
+      if (.not.allocated(cpldom%area_p)) allocate(cpldom%area_p(1,1))
+      if (.not.allocated(cpldom%mask_p)) allocate(cpldom%mask_p(1,1))
+      if (.not.allocated(cpldom%lon_q)) allocate(cpldom%lon_q(1,1))
+      if (.not.allocated(cpldom%lat_q)) allocate(cpldom%lat_q(1,1))
+      if (.not.allocated(cpldom%area_q)) allocate(cpldom%area_q(1,1))
+      if (.not.allocated(cpldom%mask_q)) allocate(cpldom%mask_q(1,1))
     endif
 
     if (mnproc.eq.1) then
       ! read hycom regional.grid.a
-      call get_coord(lat_p,lon_p,area_p,lat_q,lon_q,area_q,itdm,jtdm)
+      call get_coord(cpldom%lat_p, cpldom%lon_p, cpldom%area_p, cpldom%lat_q, &
+        cpldom%lon_q, cpldom%area_q, itdm, jtdm, rc)
     endif
 
     ! mask information
-    if (.not. allocated(tmx)) then
+    if (.not.allocated(tmx)) then
       allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
     endif
 
@@ -140,7 +167,7 @@ module hycom_couple
       tmx(i,j) = ishlf(i,j)
     enddo
     enddo
-    call xcaget(mask_p, tmx, 1)
+    call xcaget(cpldom%mask_p, tmx, 1)
 
     tmx = 0.0
     do j=1, jj
@@ -148,24 +175,25 @@ module hycom_couple
       tmx(i,j) = iq(i,j)
     enddo
     enddo
-    call xcaget(mask_q, tmx, 1)
+    call xcaget(cpldom%mask_q, tmx, 1)
 
-    if (mnproc.eq.1)  print *,"hycom_couple_init, end..."
+    if (mnproc.eq.1) print *, rname//" end..."
 
-    return
   end subroutine hycom_couple_init
 
   !-----------------------------------------------------------------------------
 
-  subroutine set_hycom_import_flag(k,fieldName)
-!   use ocn_couple_impexp
-!   use mod_cb_arrays
-    implicit none
-    integer k
-    character(len=30) fieldName
+  subroutine set_hycom_import_flag(k, fieldName, rc)
+!   arguments
+    integer, intent(in)           :: k
+    character(len=30), intent(in) :: fieldName
+    integer, intent(out)          :: rc
+!   local variables
+    character(*), parameter :: rname="set_hycom_import_flag"
 
-    if (mnproc.eq.1) print *, &
-      "set_hycom_import_flag start...,k,name=",k,fieldName
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start...,k,name=", k, fieldname
 
 !   initialize couple flags when field index is 1
     if (k.eq.1) then
@@ -287,28 +315,33 @@ module hycom_couple
       cpl_siv=.true.
     endif  !if fieldName
 
-    if (mnproc.eq.1) print *,"import_hycom end..."
+    if (mnproc.eq.1) print *, rname//" end..."
 
-    return
   end subroutine set_hycom_import_flag
 
   !-----------------------------------------------------------------------------
 
-  subroutine export_from_hycom_deb(tlb,tub,expData, &
-    fieldName,show_minmax)
-!   use mod_xc  ! HYCOM communication interface
-!   use mod_cb_arrays
-    implicit none
-!   integer           k
-!   real              mgrid(ii,jj)
-    integer tlb(2),tub(2)
-    real expData(tlb(1):tub(1),tlb(2):tub(2))
-    character(len=30) fieldName
-    real, allocatable, dimension(:,:) :: ocn_msk
-    real, allocatable, dimension(:,:) :: field_tmp
-    real, allocatable, dimension(:,:) :: tmx
-    integer i,j,jja
-    logical show_minmax
+  subroutine export_from_hycom_deb(tlb, tub, expData, fieldName, show_minmax, &
+    rc)
+!   arguments
+    integer, intent(in)           :: tlb(2)
+    integer, intent(in)           :: tub(2)
+    real, intent(inout)           :: expData(tlb(1):tub(1),tlb(2):tub(2))
+    character(len=30), intent(in) :: fieldName
+    logical, intent(in)           :: show_minmax
+    integer, intent(out)          :: rc
+!   local variables
+    character(*), parameter :: rname="export_from_hycom_deb"
+    real, allocatable       :: ocn_msk(:,:)
+    real, allocatable       :: field_tmp(:,:)
+    real, allocatable       :: tmx(:,:)
+    integer                 :: i, j, jja
+!   integer                 :: k
+!   real                    :: mgrid(ii,jj)
+
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start...,name=", fieldname
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
@@ -402,36 +435,38 @@ module hycom_couple
       if (allocated(tmx)) deallocate(tmx)
     endif
 
-    if (mnproc.eq.1) print *,"export_from_hycom_deb end..."
+    if (mnproc.eq.1) print *, rname//" end..."
 
-    return
   end subroutine export_from_hycom_deb
 
   !-----------------------------------------------------------------------------
 
-  subroutine import_to_hycom_deb(tlb,tub,impData, &
-    fieldName,show_minmax,data_init_flag)
-!   use mod_xc  ! HYCOM communication interface
-!   use ocn_couple_impexp
-!   use mod_cb_arrays
-    implicit none
-!   include 'common_blocks.h'
-    character(len=30) fieldName
-!   integer           k
-    integer tlb(2),tub(2)
-    real impData(tlb(1):tub(1),tlb(2):tub(2))
-    integer i,j,mcnt
-    real    uij,vij
-    real, allocatable, dimension(:,:) :: ocn_msk
-    real, allocatable, dimension(:,:) :: field_tmp
-    real, allocatable, dimension(:,:) :: tmx
-    real, parameter :: sstmin = -1.8
-    real, parameter :: sstmax = 35.0
-    integer ierr
-    logical show_minmax
-    integer jja
-    real    albw,degtorad
-    logical data_init_flag
+  subroutine import_to_hycom_deb(tlb, tub, impData, fieldName, show_minmax, &
+    data_init_flag, rc)
+!   arguments
+    integer, intent(in)           :: tlb(2), tub(2)
+    real, intent(inout)           :: impData(tlb(1):tub(1),tlb(2):tub(2))
+    character(len=30), intent(in) :: fieldName
+    logical, intent(in)           :: show_minmax
+    logical, intent(in)           :: data_init_flag
+    integer, intent(out)          :: rc
+!   local variables
+    character(*), parameter :: rname="import_to_hycom_deb"
+    integer                 :: i, j, mcnt
+    real                    :: uij, vij
+    real, allocatable       :: ocn_msk(:,:)
+    real, allocatable       :: field_tmp(:,:)
+    real, allocatable       :: tmx(:,:)
+    real, parameter         :: sstmin=-1.8d0
+    real, parameter         :: sstmax=35.0d0
+    integer                 :: jja
+    real                    :: albw,degtorad
+    integer                 :: ierr
+!   integer                 :: k
+
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start...,name=", fieldname
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
@@ -1014,17 +1049,22 @@ module hycom_couple
 #endif
     endif  !if fieldName
 
-    if (mnproc.eq.1) print *,"import_hycom_deb end..."
+    if (mnproc.eq.1) print *, rname//" end..."
 
-    return
   end subroutine import_to_hycom_deb
 
   !-----------------------------------------------------------------------------
 
-  subroutine ocn_import_forcing()
-!   include 'common_blocks.h'
-!!Alex    use mod_cb_arrays
-    integer i,j,m,n,jja
+  subroutine ocn_import_forcing(rc)
+!   arguments
+    integer, intent(out) :: rc
+!   local variables
+    character(*), parameter :: rname="ocn_import_forcing"
+    integer                 :: i, j, m, n, jja
+
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start..."
 
 #if defined(ARCTIC)
 !   arctic (tripole) domain, top row is replicated (ignore it)
@@ -1055,143 +1095,155 @@ module hycom_couple
         .not.cpl_siqs .or. .not.cpl_sifh .or.                   &
         .not.cpl_sifs .or. .not.cpl_sifw .or.                   &
         .not.cpl_sit  .or. .not.cpl_sih  .or.                   &
-        .not.cpl_siu  .or. .not. cpl_siv) then
+        .not.cpl_siu  .or. .not.cpl_siv) then
        if (mnproc.eq.1) print *, &
        'warning... no feedback from CICE to HYCOM(ocn_import_forcing)'
-       return
-    endif
+    else
+!     copy import data to sea ice
+      do j=1, jja
+      do i=1, ii
+      if (ishlf(i,j).eq.1) then  !standard ocean point
+        if (iceflg.ge.2 .and. icmflg.ne.3) then
+          covice(i,j) = sic_import(i,j) !Sea Ice Concentration
+          si_c(i,j) = sic_import(i,j) !Sea Ice Concentration
+          if (covice(i,j).gt.0.0) then
+             si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
+             si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
+            fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
+            flxice(i,j) =  fswice(i,j) + &
+                           sifh_import(i,j) !Ice Freezing/Melting Heat Flux
+            sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
+            wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
+            temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
+              si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
+            thkice(i,j) =   sih_import(i,j) !Sea Ice Thickness
+              si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
+              si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
+              si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
+          else
+             si_tx(i,j) = 0.0
+             si_ty(i,j) = 0.0
+            fswice(i,j) = 0.0
+            flxice(i,j) = 0.0
+            sflice(i,j) = 0.0
+            wflice(i,j) = 0.0
+            temice(i,j) = 0.0
+              si_t(i,j) = 0.0
+            thkice(i,j) = 0.0
+              si_h(i,j) = 0.0
+              si_u(i,j) = 0.0
+              si_v(i,j) = 0.0
+          endif !covice
+        elseif (iceflg.ge.2 .and. icmflg.eq.3) then
+           si_c(i,j) =  sic_import(i,j) !Sea Ice Concentration
+           if (si_c(i,j).gt.0.0) then
+             si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
+             si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
+             si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
+             si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
+             si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
+             si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
+           else
+             si_tx(i,j) = 0.0
+             si_ty(i,j) = 0.0
+             si_h(i,j) = 0.0
+             si_t(i,j) = 0.0
+             si_u(i,j) = 0.0
+             si_v(i,j) = 0.0
+           endif !covice
+        endif !iceflg>=2 (icmflg)
+      endif ! if (ishlf
+      enddo
+      enddo
 
-!   copy import data to sea ice
-    do j=1, jja
-    do i=1, ii
-    if (ishlf(i,j).eq.1) then  !standard ocean point
+#if defined(ARCTIC)
+!     update last active row of array
+!jcx  call xctila( sic_import,1,1,halo_ps)  !Sea Ice Concentration
+!jcx  call xctila(sitx_import,1,1,halo_pv)  !Sea Ice X-Stress
+!jcx  call xctila(sity_import,1,1,halo_pv)  !Sea Ice Y-Stress
+!jcx  call xctila(siqs_import,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
+!jcx  call xctila(sifh_import,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
+!jcx  call xctila(sifs_import,1,1,halo_ps)  !Ice Freezing/Melting Salt Flux
+!jcx  call xctila(sifw_import,1,1,halo_ps)  !Ice Net Water Flux
+!jcx  call xctila( sit_import,1,1,halo_ps)  !Sea Ice Temperature
+!jcx  call xctila( sih_import,1,1,halo_ps)  !Sea Ice Thickness
+!jcx  call xctila( siu_import,1,1,halo_pv)  !Sea Ice X-Velocity
+!jcx  call xctila( siv_import,1,1,halo_pv)  !Sea Ice Y-Velocity
       if (iceflg.ge.2 .and. icmflg.ne.3) then
-        covice(i,j) = sic_import(i,j) !Sea Ice Concentration
-        si_c(i,j) = sic_import(i,j) !Sea Ice Concentration
-        if (covice(i,j).gt.0.0) then
-           si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-           si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-          fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
-          flxice(i,j) =  fswice(i,j) + &
-                         sifh_import(i,j) !Ice Freezing/Melting Heat Flux
-          sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
-          wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
-          temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
-            si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-          thkice(i,j) =   sih_import(i,j) !Sea Ice Thickness
-            si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-            si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-            si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-        else
-           si_tx(i,j) = 0.0
-           si_ty(i,j) = 0.0
-          fswice(i,j) = 0.0
-          flxice(i,j) = 0.0
-          sflice(i,j) = 0.0
-          wflice(i,j) = 0.0
-          temice(i,j) = 0.0
-            si_t(i,j) = 0.0
-          thkice(i,j) = 0.0
-            si_h(i,j) = 0.0
-            si_u(i,j) = 0.0
-            si_v(i,j) = 0.0
-        endif !covice
+        call xctila(covice,1,1,halo_ps)  !Sea Ice Concentration
+        call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
+        call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
+        call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
+        call xctila(fswice,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
+        call xctila(flxice,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
+        call xctila(sflice,1,1,halo_ps)  !Ice Salt Flux
+        call xctila(wflice,1,1,halo_ps)  !Ice Freshwater Flux
+        call xctila(temice,1,1,halo_ps)  !Sea Ice Temperature
+        call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
+        call xctila(thkice,1,1,halo_ps)  !Sea Ice Thickness
+        call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
+        call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
+        call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
       elseif (iceflg.ge.2 .and. icmflg.eq.3) then
-         si_c(i,j) =  sic_import(i,j) !Sea Ice Concentration
-         if (si_c(i,j).gt.0.0) then
-           si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-           si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-            si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-            si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-            si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-            si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-         else
-           si_tx(i,j) = 0.0
-           si_ty(i,j) = 0.0
-            si_h(i,j) = 0.0
-            si_t(i,j) = 0.0
-            si_u(i,j) = 0.0
-            si_v(i,j) = 0.0
-         endif !covice
-      endif !iceflg>=2 (icmflg)
-    endif ! if (ishlf
-    enddo
-    enddo
+        call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
+        call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
+        call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
+        call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
+        call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
+        call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
+        call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
+      endif
+#endif
 
+!     smooth sea ice velocity fields
+      call psmooth(si_u,0,0,ishlf,util1)
+      call psmooth(si_v,0,0,ishlf,util1)
 #if defined(ARCTIC)
-!   update last active row of array
-!jcx      call xctila( sic_import,1,1,halo_ps)  !Sea Ice Concentration
-!jcx      call xctila(sitx_import,1,1,halo_pv)  !Sea Ice X-Stress
-!jcx      call xctila(sity_import,1,1,halo_pv)  !Sea Ice Y-Stress
-!jcx      call xctila(siqs_import,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
-!jcx      call xctila(sifh_import,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
-!jcx      call xctila(sifs_import,1,1,halo_ps)  !Ice Freezing/Melting Salt Flux
-!jcx      call xctila(sifw_import,1,1,halo_ps)  !Ice Net Water Flux
-!jcx      call xctila( sit_import,1,1,halo_ps)  !Sea Ice Temperature
-!jcx      call xctila( sih_import,1,1,halo_ps)  !Sea Ice Thickness
-!jcx      call xctila( siu_import,1,1,halo_pv)  !Sea Ice X-Velocity
-!jcx      call xctila( siv_import,1,1,halo_pv)  !Sea Ice Y-Velocity
-    if (iceflg.ge.2 .and. icmflg.ne.3) then
-      call xctila(covice,1,1,halo_ps)  !Sea Ice Concentration
-      call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
-      call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
-      call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
-      call xctila(fswice,1,1,halo_ps)  !Solar Heat Flux thru Ice to Ocean
-      call xctila(flxice,1,1,halo_ps)  !Ice Freezing/Melting Heat Flux
-      call xctila(sflice,1,1,halo_ps)  !Ice Salt Flux
-      call xctila(wflice,1,1,halo_ps)  !Ice Freshwater Flux
-      call xctila(temice,1,1,halo_ps)  !Sea Ice Temperature
-      call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
-      call xctila(thkice,1,1,halo_ps)  !Sea Ice Thickness
-      call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
-      call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
-      call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
-    elseif (iceflg.ge.2 .and. icmflg.eq.3) then
-      call xctila(  si_c,1,1,halo_ps)  !Sea Ice Concentration
-      call xctila( si_tx,1,1,halo_pv)  !Sea Ice X-Stress into ocean
-      call xctila( si_ty,1,1,halo_pv)  !Sea Ice Y-Stress into ocean
-      call xctila(  si_h,1,1,halo_ps)  !Sea Ice Thickness
-      call xctila(  si_t,1,1,halo_ps)  !Sea Ice Temperature
-      call xctila(  si_u,1,1,halo_pv)  !Sea Ice X-Velocity
-      call xctila(  si_v,1,1,halo_pv)  !Sea Ice Y-Velocity
+      call xctila(si_u,1,1,halo_pv)
+      call xctila(si_v,1,1,halo_pv)
+#endif
+!     call xctilr(si_u,1,1, nbdy,nbdy, halo_pv)
+!     call xctilr(si_v,1,1, nbdy,nbdy, halo_pv)
+
+!     copy back from sea ice to import for archive_ice
+      do j=1, jja
+      do i=1, ii
+        if (si_c(i,j).gt.0.0) then
+          siu_import(i,j) = si_u(i,j) !Sea Ice X-Velocity
+          siv_import(i,j) = si_v(i,j) !Sea Ice Y-Velocity
+        endif !si_c
+      enddo !i
+      enddo !j
     endif
-#endif
 
-!   smooth sea ice velocity fields
-    call psmooth(si_u,0,0,ishlf,util1)
-    call psmooth(si_v,0,0,ishlf,util1)
-#if defined(ARCTIC)
-    call xctila(si_u,1,1,halo_pv)
-    call xctila(si_v,1,1,halo_pv)
-#endif
-!   call xctilr(si_u,1,1, nbdy,nbdy, halo_pv)
-!   call xctilr(si_v,1,1, nbdy,nbdy, halo_pv)
+    if (mnproc.eq.1) print *, rname//" end..."
 
-!   copy back from sea ice to import for archive_ice
-    do j=1, jja
-    do i=1, ii
-      if (si_c(i,j).gt.0.0) then
-        siu_import(i,j) = si_u(i,j) !Sea Ice X-Velocity
-        siv_import(i,j) = si_v(i,j) !Sea Ice Y-Velocity
-      endif !si_c
-    enddo !i
-    enddo !j
   end subroutine ocn_import_forcing
 
   !-----------------------------------------------------------------------------
 
-  subroutine hycom_couple_final()
-    if (allocated(deBList)) deallocate(deBList)
-    if (allocated(lon_p)) deallocate(lon_p)
-    if (allocated(lat_p)) deallocate(lat_p)
-    if (allocated(area_p)) deallocate(area_p)
-    if (allocated(mask_p)) deallocate(mask_p)
-    if (allocated(lon_q)) deallocate(lon_q)
-    if (allocated(lat_q)) deallocate(lat_q)
-    if (allocated(area_q)) deallocate(area_q)
-    if (allocated(mask_q)) deallocate(mask_q)
+  subroutine hycom_couple_final(rc)
+!   arguments
+    integer, intent(out) :: rc
+!   local variables
+    character(*), parameter :: rname="hycom_couple_final"
 
-    return
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start..."
+
+    if (allocated(cpldom%deBList)) deallocate(cpldom%deBList)
+    if (allocated(cpldom%lon_p)) deallocate(cpldom%lon_p)
+    if (allocated(cpldom%lat_p)) deallocate(cpldom%lat_p)
+    if (allocated(cpldom%area_p)) deallocate(cpldom%area_p)
+    if (allocated(cpldom%mask_p)) deallocate(cpldom%mask_p)
+    if (allocated(cpldom%lon_q)) deallocate(cpldom%lon_q)
+    if (allocated(cpldom%lat_q)) deallocate(cpldom%lat_q)
+    if (allocated(cpldom%area_q)) deallocate(cpldom%area_q)
+    if (allocated(cpldom%mask_q)) deallocate(cpldom%mask_q)
+
+    if (mnproc.eq.1) print *, rname//" end..."
+
   end subroutine hycom_couple_final
 !===============================================================================
 end module hycom_couple

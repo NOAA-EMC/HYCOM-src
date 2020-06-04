@@ -8,16 +8,22 @@
 !     Read latitude and longitude coordinates from regional.grid.a file.
 !
 !===============================================================================
-subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
+subroutine readHycomLatLon(plat, plon, qlat, qlon, itdm, jtdm, rc)
   implicit none
-  REAL*4 plat(itdm,jtdm),plon(itdm,jtdm)
-  REAL*4 qlat(itdm,jtdm),qlon(itdm,jtdm)
-  REAL*4, allocatable :: pad(:)
-  integer npad
-  integer ios,nrecl
-  integer i,j
-  CHARACTER*240 cfilea
-  integer itdm,jtdm
+! arguments
+  real*4, intent(inout) :: plat(itdm,jtdm)
+  real*4, intent(inout) :: plon(itdm,jtdm)
+  real*4, intent(inout) :: qlat(itdm,jtdm)
+  real*4, intent(inout) :: qlon(itdm,jtdm)
+  integer, intent(in)   :: itdm
+  integer, intent(in)   :: jtdm
+  integer, intent(out)  :: rc
+! local variables
+  real*4, allocatable :: pad(:)
+  integer             :: npad
+  integer             :: ios, nrecl
+  integer             :: i, j
+  character*240       :: cfilea
 
   cfilea = 'regional.grid.a'
 
@@ -89,5 +95,4 @@ subroutine readHycomLatLon(plat,plon,qlat,qlon,itdm,jtdm)
 
   if (allocated(pad)) deallocate(pad)
 
-  return
 end subroutine readHycomLatLon

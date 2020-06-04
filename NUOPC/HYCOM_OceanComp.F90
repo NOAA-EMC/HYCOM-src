@@ -45,10 +45,13 @@
                         HYCOM_Run,  &
                         HYCOM_Final
   use mod_archiv, only: archiv_exchange
-  use hycom_couple, only: idim_size,jdim_size,deBList, &
-    lon_p,lat_p,mask_p,area_p,lon_q,lat_q,mask_q,area_q, &
-    hycom_couple_init,hycom_couple_final,set_hycom_import_flag, &
-    import_to_hycom_deb, export_from_hycom_deb,ocn_import_forcing
+  use hycom_couple, only: cpldom, &
+                          hycom_couple_init, &
+                          set_hycom_import_flag, &
+                          export_from_hycom_deb, &
+                          import_to_hycom_deb, &
+                          ocn_import_forcing, &
+                          hycom_couple_final
 
 # ifdef ESPC_COUPLE
   use read_impexp_config_mod
@@ -774,23 +777,24 @@ end subroutine InitializeP1
 !!Alex    call ocn_import_init()
     do i=1,numImpFields
       if (impFieldEnable(i)) then
-        call set_hycom_import_flag(i,impFieldName(i))
+        call set_hycom_import_flag(i,impFieldName(i),rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg="set_hycom_import_flag failed", CONTEXT)) return
       endif
     enddo
 
 
 # endif
 
-    call hycom_couple_init(nPets,rc)
+    call hycom_couple_init(nPets,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", CONTEXT)) return
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called 2,idim_size,jdim_size", &
-       idim_size,jdim_size
+       cpldom%idim_size,cpldom%jdim_size
 
 #if defined(ARCTIC)
-    itdmx=idim_size; jtdmx=jdim_size-1
+    itdmx=cpldom%idim_size; jtdmx=cpldom%jdim_size-1
 #else
-    itdmx=idim_size; jtdmx=jdim_size
+    itdmx=cpldom%idim_size; jtdmx=cpldom%jdim_size
 #endif
 
     if (lPet.eq.0) print *,"hycom, itdmx,jtdmx..=",itdmx,jtdmx
@@ -815,13 +819,13 @@ end subroutine InitializeP1
 
 !    ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/itdmx,jtdmx/), &
 !      indexflag=ESMF_INDEX_GLOBAL, &
-!      deBlockList=deBList,connectionList=connectionList,rc=rc)
+!      deBlockList=cpldom%deBList,connectionList=connectionList,rc=rc)
 !    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
 
     ! create new grid
     ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), &
        maxIndex=(/itdmx,jtdmx/), indexflag=ESMF_INDEX_GLOBAL, &
-       deBlockList=deBList, rc=rc)
+       deBlockList=cpldom%deBList, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
 
 
@@ -841,7 +845,8 @@ end subroutine InitializeP1
     decomp=(/nPets/i,i/)
     if (lPet.eq.0) print *,"nPets,decomp=",nPets,decomp
 
-    gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), maxIndex=(/idim_size,jdim_size/), &
+    gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), &
+            maxIndex=(/cpldom%idim_size,cpldom%jdim_size/), &
             indexflag=ESMF_INDEX_GLOBAL, &
             regDecomp=decomp, name="OCEAN:grid", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
@@ -866,16 +871,16 @@ end subroutine InitializeP1
 
     if ((ocn_esmf_imp_output.or.ocn_esmf_exp_output).and.lPet.eq.0) then
 
-      call impexp_cdf_put_latlonmsk('hycom',itdmx,jtdmx,lat_p, &
-        lon_p,mask_p,status,rc)
+      call impexp_cdf_put_latlonmsk('hycom',itdmx,jtdmx,cpldom%lat_p, &
+        cpldom%lon_p,cpldom%mask_p,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
-      call impexp_cdf_put_latlonmsk('hycom-orig',idim_size,jdim_size,lat_p, &
-        lon_p,mask_p,status,rc)
+      call impexp_cdf_put_latlonmsk('hycom-orig',cpldom%idim_size,&
+        cpldom%jdim_size,cpldom%lat_p,cpldom%lon_p,cpldom%mask_p,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
-      call impexp_cdf_put_latlonmsk_corner('hycom',idim_size,jdim_size,lat_p,lon_p,int(mask_p),lat_q, &
-        lon_q,status,rc)
+      call impexp_cdf_put_latlonmsk_corner('hycom',cpldom%idim_size,cpldom%jdim_size, &
+        cpldom%lat_p,cpldom%lon_p,int(cpldom%mask_p),cpldom%lat_q,cpldom%lon_q,status,rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk_corner failed", CONTEXT)) return
 
     endif
@@ -890,7 +895,7 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=lon_p(i,j)
+      tmp_e(i,j)=cpldom%lon_p(i,j)
     enddo
     enddo
   endif
@@ -906,7 +911,7 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=lat_p(i,j)
+      tmp_e(i,j)=cpldom%lat_p(i,j)
     enddo
     enddo
   endif
@@ -923,16 +928,16 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_c(i,j)=lon_q(i,j)
+      tmp_c(i,j)=cpldom%lon_q(i,j)
     enddo
     enddo
 
     ! fill edges
     do i=1,itdmx
-      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(lon_q(i,jtdmx)-lon_q(i,jtdmx-1))
+      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lon_q(i,jtdmx)-cpldom%lon_q(i,jtdmx-1))
     end do
     do j=1,jtdmx
-      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(lon_q(itdmx,j)-lon_q(itdmx-1,j))
+      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lon_q(itdmx,j)-cpldom%lon_q(itdmx-1,j))
     end do
     tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
 
@@ -949,16 +954,16 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_c(i,j)=lat_q(i,j)
+      tmp_c(i,j)=cpldom%lat_q(i,j)
     enddo
     enddo
 
     ! fill edges
     do i=1,itdmx
-      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(lat_q(i,jtdmx)-lat_q(i,jtdmx-1))
+      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lat_q(i,jtdmx)-cpldom%lat_q(i,jtdmx-1))
     end do
     do j=1,jtdmx
-      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(lat_q(itdmx,j)-lat_q(itdmx-1,j))
+      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lat_q(itdmx,j)-cpldom%lat_q(itdmx-1,j))
     end do
     tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
   endif
@@ -974,7 +979,7 @@ end subroutine InitializeP1
   if (lPet.eq.0) then
     do i=1,itdmx
     do j=1,jtdmx
-      tmp_e(i,j)=mask_p(i,j)
+      tmp_e(i,j)=cpldom%mask_p(i,j)
     enddo
     enddo
   endif
@@ -1144,7 +1149,8 @@ end subroutine InitializeP1
 
 #endif
 
-    call hycom_couple_final()
+    call hycom_couple_final(rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
 # ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
@@ -1294,7 +1300,8 @@ subroutine ModelAdvance(model, rc)
 !ajw
 !move to mod_hycom.F
 #  ifdef ESPC_COUPLE
-    call ocn_import_forcing()
+    call ocn_import_forcing(rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
     if (hycom_arche_output .and. begtime.eq.0) &
       call archiv_exchange  !arche file of fields exchanged with ice component
 #endif
@@ -1548,7 +1555,9 @@ subroutine do_export(k,field,rc)
     field_data(:,:)=0.
 
     allocate(expData(tlb(1):tub(1),tlb(2):tub(2) ))
-    call export_from_hycom_deb(tlb,tub,expData,fieldName,show_minmax)
+    call export_from_hycom_deb(tlb,tub,expData,fieldName,show_minmax,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
+      rcToReturn=rc)) return
 
     do j   = tlb(2),tub(2)
     do i   = tlb(1),tub(1)
@@ -1605,7 +1614,9 @@ subroutine do_import(k,field,data_init_flag,rc)
     enddo
 
 
-    call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax,data_init_flag)
+    call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax,data_init_flag,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
+      rcToReturn=rc)) return
 
     if (allocated(impData)) deallocate(impData)
 
