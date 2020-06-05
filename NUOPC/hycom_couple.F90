@@ -127,6 +127,9 @@ module hycom_couple
       if (.not.allocated(cpldom%lat_q)) allocate(cpldom%lat_q(itdm,jtdm))
       if (.not.allocated(cpldom%area_q)) allocate(cpldom%area_q(itdm,jtdm))
       if (.not.allocated(cpldom%mask_q)) allocate(cpldom%mask_q(itdm,jtdm))
+!     read hycom regional.grid.a
+      call get_coord(cpldom%lat_p, cpldom%lon_p, cpldom%area_p, cpldom%lat_q, &
+        cpldom%lon_q, cpldom%area_q, itdm, jtdm, rc)
     else
       if (.not.allocated(cpldom%lon_p)) allocate(cpldom%lon_p(1,1))
       if (.not.allocated(cpldom%lat_p)) allocate(cpldom%lat_p(1,1))
@@ -136,13 +139,6 @@ module hycom_couple
       if (.not.allocated(cpldom%lat_q)) allocate(cpldom%lat_q(1,1))
       if (.not.allocated(cpldom%area_q)) allocate(cpldom%area_q(1,1))
       if (.not.allocated(cpldom%mask_q)) allocate(cpldom%mask_q(1,1))
-    endif
-
-    if (mnproc.eq.1) then
-!     read hycom regional.grid.a
-      call get_coord(cpldom%lat_p, cpldom%lon_p, cpldom%area_p, cpldom%lat_q, &
-        cpldom%lon_q, cpldom%area_q, itdm, jtdm, rc)
-    else
       cpldom%lat_p(:,:)=0.0
       cpldom%lon_p(:,:)=0.0
       cpldom%area_p(:,:)=0.0
@@ -308,6 +304,10 @@ module hycom_couple
 !   import sea ice y-velocity
     elseif (fieldName.eq.'siv') then
       cpl_siv=.true.
+    else ! error
+      if (mnproc.eq.1) print *, "error - fieldName unknown: "//trim(fieldName)
+      call xcstop('('//rname//')')
+      stop '('//rname//')'
     endif !fieldName
 
     if (mnproc.eq.1) print *, rname//" end..."
@@ -413,7 +413,6 @@ module hycom_couple
           minval(field_tmp,mask=ocn_msk.eq.1), &
           (sum(field_tmp,mask=ocn_msk.eq.1)/count(ocn_msk.eq.1))
  992    format('export_from_hycom_deb,max,min,mean=',A10,3E23.15)
-        print *,"export_from_hycom_deb end..."
       endif
 
 !     test check pang
@@ -474,58 +473,6 @@ module hycom_couple
     jja=jj
 #endif
 
-!   diagnostic output
-    if (show_minmax) then
-!     jc-01262014
-!     allocate memory
-      if (mnproc.eq.1) then
-        allocate(ocn_msk(itdm,jtdm))
-        allocate(field_tmp(itdm,jtdm))
-      else
-        allocate(ocn_msk(1,1))
-        allocate(field_tmp(1,1))
-      endif
-
-      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
-
-!     sea/land mask
-      tmx(:,:)=0.0
-      do j=1, jja
-      do i=1, ii
-        tmx(i,j)=ishlf(i,j)
-!x      tmx(i,j)=ip(i,j)
-      enddo
-      enddo
-      call xcaget(ocn_msk,tmx,1)
-!     call xcsync(no_flush)
-
-!     import field data
-      tmx(:,:)=0.0
-      do j=1, jja
-      do i=1, ii
-!       tmx(i,j)=mgrid(i,j)
-        tmx(i,j)=impData(i+i0,j+j0)
-      enddo
-      enddo
-      call xcaget(field_tmp,tmx,1)
-!     call mpi_barrier(mpi_comm_hycom,ierr)
-!     call xcsync(no_flush)
-
-!     write minmax to stdout
-      if (mnproc.eq.1) then
-        write(*,992) trim(fieldName),          &
-          maxval(field_tmp,mask=ocn_msk.eq.1), &
-          minval(field_tmp,mask=ocn_msk.eq.1), &
-          (sum(field_tmp,mask=ocn_msk.eq.1)/count(ocn_msk.eq.1))
- 992    format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
-      endif
-
-!     deallocate memory
-      if (allocated(ocn_msk)) deallocate(ocn_msk)
-      if (allocated(field_tmp)) deallocate(field_tmp)
-      if (allocated(tmx)) deallocate(tmx)
-    endif !show_minmax
-
 !   -----------------
 !    import from atm
 !   -----------------
@@ -555,18 +502,13 @@ module hycom_couple
         else
           tauy(i,j,l0)=0.0
         endif
-      enddo
-      enddo
-
-      do j=1, jja
-      do i=1, ii
           uij=taux(i,j,l0)
           vij=tauy(i,j,l0)
 !         rotate to (x,y)ward
           taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
           tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-      enddo !i
-      enddo !j
+      enddo
+      enddo
 #if defined(ARCTIC)
       call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
       call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
@@ -599,17 +541,13 @@ module hycom_couple
         else
           tauy(i,j,l0)=0.0
         endif
-      enddo
-      enddo
-      do j=1, jja
-      do i=1, ii
         uij=taux(i,j,l0)
         vij=tauy(i,j,l0)
 !       rotate to (x,y)ward
         taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
         tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-      enddo !i
-      enddo !j
+      enddo
+      enddo
 #if defined(ARCTIC)
       call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
       call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
@@ -651,14 +589,9 @@ module hycom_couple
     elseif (fieldName.eq.'airtmp') then
       do j=1, jja
       do i=1, ii
-!       canonical unit conversion: airtmp (K) -> (C)
-        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
-      enddo
-      enddo
-      do j=1, jja
-      do i=1, ii
         if (ishlf(i,j).eq.1) then
-          airtmp(i,j,l0)=impData(i+i0,j+j0)
+!         canonical unit conversion: airtmp (K) -> (C)
+          airtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
         else
           airtmp(i,j,l0)=0.0
         endif
@@ -673,11 +606,12 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!!Alex    flxflg.eq.4 => mixing ratio
-!         convert from specific humidity to mixing ratio
-          vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
-!!Alex    flxflg.eq.5 => specific humidity
-          if (flxflg.eq.5) vapmix(i,j,l0)=impData(i+i0,j+j0)
+          if (flxflg.ne.5) then !Alex flxflg.eq.4 => mixing ratio
+!           convert from specific humidity to mixing ratio
+            vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+          else !Alex flxflg.eq.5 => specific humidity
+            vapmix(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           vapmix(i,j,l0)=0.01
         endif
@@ -703,8 +637,8 @@ module hycom_couple
 #endif
 !   -----------------
 !   import downward sw flux: w m-2
-    elseif ((fieldName.eq.'swflx_net2down') &
-      .or.(fieldName.eq.'swflxd')) then
+    elseif ((fieldName.eq.'swflx_net2down').or. &
+            (fieldName.eq.'swflxd')) then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -752,14 +686,9 @@ module hycom_couple
     elseif (fieldName.eq.'lwflx_net') then
       do j=1, jja
       do i=1, ii
-!       canonical unit conversion: lwflx_net (upward) -> (downward)
-        impData(i+i0,j+j0)=impData(i+i0,j+j0)*(-1.)
-      enddo
-      enddo
-      do j=1, jja
-      do i=1, ii
         if (ishlf(i,j).eq.1) then
-          lwflx(i,j,l0)=impData(i+i0,j+j0)
+!         canonical unit conversion: lwflx_net (upward) -> (downward)
+          lwflx(i,j,l0)=impData(i+i0,j+j0)*(-1.)
         else
           lwflx(i,j,l0)=0.0
         endif
@@ -771,8 +700,8 @@ module hycom_couple
 !   -----------------
 !   import downward lw flux: w m-2
 !   +ve into ocean
-    elseif ((fieldName.eq.'lwflx_net2down') &
-      .or. (fieldName.eq.'lwflxd')) then
+    elseif ((fieldName.eq.'lwflx_net2down').or. &
+            (fieldName.eq.'lwflxd')) then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -790,14 +719,9 @@ module hycom_couple
     elseif (fieldName.eq.'prcp') then
       do j=1, jja
       do i=1, ii
-!       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
-        impData(i+i0,j+j0)=impData(i+i0,j+j0)*(0.001)
-      enddo
-      enddo
-      do j=1, jja
-      do i=1, ii
         if (ishlf(i,j).eq.1) then
-          precip(i,j,l0)=impData(i+i0,j+j0)
+!         canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
+          precip(i,j,l0)=impData(i+i0,j+j0)*(0.001)
         else
           precip(i,j,l0)=0.0
         endif
@@ -811,14 +735,9 @@ module hycom_couple
     elseif (fieldName.eq.'gt') then
       do j=1, jja
       do i=1, ii
-!       canonical unit conversion: gt (K) -> (C)
-        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15
-      enddo
-      enddo
-      do j=1, jja
-      do i=1, ii
         if (ishlf(i,j).eq.1) then
-          surtmp(i,j,l0)=impData(i+i0,j+j0)
+!         canonical unit conversion: gt (K) -> (C)
+          surtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
         else
           surtmp(i,j,l0)=0.0
         endif
@@ -827,7 +746,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
-      if (sstflg.ne.3) then !use atmos. sst as "truth"
+      if (sstflg.ne.3) then !use atmos sst as "truth"
         do j=1, jja
         do i=1, ii
           seatmp(i,j,l0)=max(sstmin,min(surtmp(i,j,l0),sstmax))
@@ -966,11 +885,15 @@ module hycom_couple
 #ifndef ESPC_NOCANONICAL_CONVERT
       do j=1, jja
       do i=1, ii
-!       canonical unit conversion: sit_sfc (K) -> (C)
-        impData(i+i0,j+j0)=impData(i+i0,j+j0)-273.15d0
+        if (ishlf(i,j).eq.1) then
+!         canonical unit conversion: sit_sfc (K) -> (C)
+          sit_import(i,j)=impData(i+i0,j+j0)-273.15
+        else
+          sit_import(i,j)=0.0
+        endif
       enddo
       enddo
-#endif
+#else
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -980,6 +903,7 @@ module hycom_couple
         endif
       enddo
       enddo
+#endif
 #if defined(ARCTIC)
       call xctila(sit_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
@@ -1013,6 +937,7 @@ module hycom_couple
 !   ---------------------
 !   import sea ice y-velocity
     elseif (fieldName.eq.'siv') then
+#ifndef ESPC_NOCANONICAL_CONVERT
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -1020,24 +945,81 @@ module hycom_couple
         else
           siv_import(i,j)=0.0
         endif
-      enddo
-      enddo
-#ifndef ESPC_NOCANONICAL_CONVERT
-      do j=1, jja
-      do i=1, ii
         uij=siu_import(i,j)
         vij=siv_import(i,j)
 !       rotate to (x,y)ward
         siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
         siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
-      enddo !i
-      enddo !j
+      enddo
+      enddo
+#else
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          siv_import(i,j)=impData(i+i0,j+j0)
+        else
+          siv_import(i,j)=0.0
+        endif
 #endif
 #if defined(ARCTIC)
       call xctila(siu_import(1-nbdy,1-nbdy),1,1,halo_pv)
       call xctila(siv_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
+    else ! field unknown error
+      if (mnproc.eq.1) print *, "error - fieldName unknown: "//trim(fieldName)
+      call xcstop('('//rname//')')
+      stop '('//rname//')'
     endif !fieldName
+
+!   diagnostic output
+    if (show_minmax) then
+!     allocate memory
+      if (mnproc.eq.1) then
+        allocate(ocn_msk(itdm,jtdm))
+        allocate(field_tmp(itdm,jtdm))
+      else
+        allocate(ocn_msk(1,1))
+        allocate(field_tmp(1,1))
+      endif
+      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
+
+!     ocn_msk: sea/land mask
+      tmx(:,:)=0.0
+      do j=1, jja
+      do i=1, ii
+        tmx(i,j)=ishlf(i,j)
+!x      tmx(i,j)=ip(i,j)
+      enddo
+      enddo
+      call xcaget(ocn_msk,tmx,1)
+!     call xcsync(no_flush)
+
+!     field_tmp: import data
+      tmx(:,:)=0.0
+      do j=1, jja
+      do i=1, ii
+!       tmx(i,j)=mgrid(i,j)
+        tmx(i,j)=impData(i+i0,j+j0)
+      enddo
+      enddo
+      call xcaget(field_tmp,tmx,1)
+!      call mpi_barrier(mpi_comm_hycom,ierr)
+!      call xcsync(no_flush)
+
+!     write minmax to stdout
+      if (mnproc.eq.1) then
+        write(*,992) trim(fieldName),          &
+          maxval(field_tmp,mask=ocn_msk.eq.1), &
+          minval(field_tmp,mask=ocn_msk.eq.1), &
+          (sum(field_tmp,mask=ocn_msk.eq.1)/count(ocn_msk.eq.1))
+ 992    format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
+      endif
+
+!     deallocate memory
+      if (allocated(ocn_msk)) deallocate(ocn_msk)
+      if (allocated(field_tmp)) deallocate(field_tmp)
+      if (allocated(tmx)) deallocate(tmx)
+    endif !show_minmax
 
     if (mnproc.eq.1) print *, rname//" end..."
 
