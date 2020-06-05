@@ -161,7 +161,7 @@ module hycom_couple
       allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
     endif
 
-    tmx = 0.0
+    tmx(:,:) = 0.0
     do j=1, jj
     do i=1, ii
       tmx(i,j) = ishlf(i,j)
@@ -169,7 +169,7 @@ module hycom_couple
     enddo
     call xcaget(cpldom%mask_p, tmx, 1)
 
-    tmx = 0.0
+    tmx(:,:) = 0.0
     do j=1, jj
     do i=1, ii
       tmx(i,j) = iq(i,j)
@@ -231,87 +231,87 @@ module hycom_couple
     endif
 
 !   set couple flags based on fieldnames
-    if (fieldName .eq. 'taux10') then
+    if (fieldName.eq.'taux10') then
       cpl_taux=.true.
-    elseif (fieldName .eq. 'tauy10') then
+    elseif (fieldName.eq.'tauy10') then
       cpl_tauy=.true.
       if     (.not.cpl_taux) then
         if (mnproc.eq.1) print *,"error - tauy before taux"
         call xcstop('(set_hycom_import_flag)')
                stop '(set_hycom_import_flag)'
       endif !error
-    elseif (fieldName .eq. 'u10') then
+    elseif (fieldName.eq.'u10') then
       cpl_u10=.true.
-    elseif (fieldName .eq. 'v10') then
+    elseif (fieldName.eq.'v10') then
       cpl_v10=.true.
       if     (.not.cpl_u10) then
         if (mnproc.eq.1) print *,"error - v10 before u10"
         call xcstop('(set_hycom_import_flag)')
                stop '(set_hycom_import_flag)'
       endif !error
-    elseif (fieldName .eq. 'wndspd10') then
+    elseif (fieldName.eq.'wndspd10') then
       cpl_wndspd=.true.
-    elseif (fieldName .eq. 'ustara10') then
+    elseif (fieldName.eq.'ustara10') then
       cpl_ustara=.true.
-    elseif (fieldName .eq. 'airtmp') then
+    elseif (fieldName.eq.'airtmp') then
       cpl_airtmp=.true.
-    elseif (fieldName .eq. 'airhum') then
+    elseif (fieldName.eq.'airhum') then
       cpl_vapmix=.true.
-    elseif (fieldName .eq. 'swflx_net') then
+    elseif (fieldName.eq.'swflx_net') then
       cpl_swflx_net=.true.
-    elseif (fieldName .eq. 'lwflx_net') then
+    elseif (fieldName.eq.'lwflx_net') then
       cpl_lwflx_net=.true.
-    elseif (fieldName .eq. 'swflx_net2down') then
+    elseif (fieldName.eq.'swflx_net2down') then
       cpl_swflx_net2down=.true.
-    elseif (fieldName .eq. 'lwflx_net2down') then
+    elseif (fieldName.eq.'lwflx_net2down') then
       cpl_lwflx_net2down=.true.
-    elseif (fieldName .eq. 'swflxd') then
+    elseif (fieldName.eq.'swflxd') then
       cpl_swflxd=.true.
-    elseif (fieldName .eq. 'lwflxd') then
+    elseif (fieldName.eq.'lwflxd') then
       cpl_lwflxd=.true.
-    elseif (fieldName .eq. 'mslprs') then
+    elseif (fieldName.eq.'mslprs') then
       cpl_mslprs=.true.
-    elseif (fieldName .eq. 'prcp') then
+    elseif (fieldName.eq.'prcp') then
       cpl_precip=.true.
-    elseif (fieldName .eq. 'gt') then
+    elseif (fieldName.eq.'gt') then
       cpl_surtmp=.true.
       cpl_seatmp=.true.
-    elseif (fieldName .eq. 'sbhflx') then
+    elseif (fieldName.eq.'sbhflx') then
       cpl_sbhflx=.true.
-    elseif (fieldName .eq. 'lthflx') then
+    elseif (fieldName.eq.'lthflx') then
       cpl_lthflx=.true.
 !   import ice concentration
-    elseif (fieldName .eq. 'sic') then
+    elseif (fieldName.eq.'sic') then
       cpl_sic=.true.
 !   import ice x-stress
-    elseif (fieldName .eq. 'sitx') then
+    elseif (fieldName.eq.'sitx') then
       cpl_sitx=.true.
 !   import ice y-stress
-    elseif (fieldName .eq. 'sity') then
+    elseif (fieldName.eq.'sity') then
       cpl_sity=.true.
 !   import solar thru grid cell ave.
-    elseif (fieldName .eq. 'siqs') then
+    elseif (fieldName.eq.'siqs') then
       cpl_siqs=.true.
 !   import freeze, melt, h. flux
-    elseif (fieldName .eq. 'sifh') then
+    elseif (fieldName.eq.'sifh') then
       cpl_sifh=.true.
 !   import salt flux
-    elseif (fieldName .eq. 'sifs') then
+    elseif (fieldName.eq.'sifs') then
       cpl_sifs=.true.
 !   import water flux
-    elseif (fieldName .eq. 'sifw') then
+    elseif (fieldName.eq.'sifw') then
       cpl_sifw=.true.
 !   import sea ice temperature
-    elseif (fieldName .eq. 'sit_sfc') then
+    elseif (fieldName.eq.'sit_sfc') then
       cpl_sit=.true.
 !   import sea ice thickness
-    elseif (fieldName .eq. 'sih') then
+    elseif (fieldName.eq.'sih') then
       cpl_sih=.true.
 !   import sea ice x-velocity
-    elseif (fieldName .eq. 'siu') then
+    elseif (fieldName.eq.'siu') then
       cpl_siu=.true.
 !   import sea ice y-velocity
-    elseif (fieldName .eq. 'siv') then
+    elseif (fieldName.eq.'siv') then
       cpl_siv=.true.
     endif  !if fieldName
 
@@ -359,7 +359,7 @@ module hycom_couple
 #endif
 
 !   export unit conversions
-    if (fieldName .eq. 'sst') then
+    if (fieldName.eq.'sst') then
       do j=1, jj
       do i=1, ii
 #ifndef ESPC_NOCANONICAL_CONVERT
@@ -371,7 +371,7 @@ module hycom_couple
     endif
 
 !   copy internal data to export array
-    expData(:,:)=0.
+    expData(:,:)=0.0
     do j=1, jja
     do i=1, ii
 !     mgrid(i,j)=util2(i,j)
@@ -391,7 +391,7 @@ module hycom_couple
       allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
 
 !     sea/land mask
-      tmx(:,:)=0.
+      tmx(:,:)=0.0
       do j=1, jja
       do i=1, ii
           tmx(i,j) = ishlf(i,j)
@@ -402,7 +402,7 @@ module hycom_couple
 !     call xcsync(no_flush)
 
 !     export field data
-      tmx(:,:)=0.
+      tmx(:,:)=0.0
       do j=1, jja
       do i=1, ii
         tmx(i,j) = expData(i+i0,j+j0)
@@ -498,7 +498,7 @@ module hycom_couple
       allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
 
 !     sea/land mask
-      tmx(:,:)=0.
+      tmx(:,:)=0.0
       do j=1, jja
       do i=1, ii
         tmx(i,j) = ishlf(i,j)
@@ -509,7 +509,7 @@ module hycom_couple
 !     call xcsync(no_flush)
 
 !     import field data
-      tmx(:,:)=0.
+      tmx(:,:)=0.0
       do j=1, jja
       do i=1, ii
 !       tmx(i,j) = mgrid(i,j)
@@ -539,14 +539,14 @@ module hycom_couple
 !    import from atm
 !   -----------------
 !   import xstress: Pa
-    if (fieldName .eq. 'taux10') then
+    if (fieldName.eq.'taux10') then
       do j=1, jja
       do i=1, ii
 !       taux(i,j,l0)=mgrid(i,j)
         if (ishlf(i,j).eq.1) then
           taux(i,j,l0)=impData(i+i0,j+j0)
         else
-          taux(i,j,l0)=0.
+          taux(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -556,13 +556,13 @@ module hycom_couple
       call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import ystress: Pa
-    elseif (fieldName .eq. 'tauy10') then
+    elseif (fieldName.eq.'tauy10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           tauy(i,j,l0)=impData(i+i0,j+j0)
         else
-          tauy(i,j,l0)=0.
+          tauy(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -584,13 +584,13 @@ module hycom_couple
       call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import u wind at 10m height: ms-1
-    elseif (fieldName .eq. 'u10') then
+    elseif (fieldName.eq.'u10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           taux(i,j,l0)=impData(i+i0,j+j0)
         else
-          taux(i,j,l0)=0.
+          taux(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -600,13 +600,13 @@ module hycom_couple
       call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import v wind at 10m height: ms-1
-    elseif (fieldName .eq. 'v10') then
+    elseif (fieldName.eq.'v10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           tauy(i,j,l0)=impData(i+i0,j+j0)
         else
-          tauy(i,j,l0)=0.
+          tauy(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -627,13 +627,13 @@ module hycom_couple
       call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import wind speed: m s-1
-    elseif (fieldName .eq. 'wndspd10') then
+    elseif (fieldName.eq.'wndspd10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           wndspd(i,j,l0)=impData(i+i0,j+j0)
         else
-          wndspd(i,j,l0)=0.
+          wndspd(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -642,13 +642,13 @@ module hycom_couple
 #endif
 !   -----------------
 !   import friction speed: m s-1
-    elseif (fieldName .eq. 'ustara10') then
+    elseif (fieldName.eq.'ustara10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           ustara(i,j,l0)=impData(i+i0,j+j0)
         else
-          ustara(i,j,l0)=0.
+          ustara(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -657,7 +657,7 @@ module hycom_couple
 #endif
 !   -----------------
 !   import air temperature
-    elseif (fieldName .eq. 'airtmp') then
+    elseif (fieldName.eq.'airtmp') then
       do j=1, jja
       do i=1, ii
 !       canonical unit conversion: airtmp (K) -> (C)
@@ -669,7 +669,7 @@ module hycom_couple
         if (ishlf(i,j).eq.1) then
           airtmp(i,j,l0)=impData(i+i0,j+j0)
         else
-          airtmp(i,j,l0)=0.
+          airtmp(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -678,7 +678,7 @@ module hycom_couple
 #endif
 !   -----------------
 !   import specific humidity: kg kg-1
-    elseif (fieldName .eq. 'airhum') then
+    elseif (fieldName.eq.'airhum') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -697,13 +697,13 @@ module hycom_couple
 #endif
 !   -----------------
 !   import sw flux: w m-2
-    elseif (fieldName .eq. 'swflx_net') then
+    elseif (fieldName.eq.'swflx_net') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           swflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          swflx(i,j,l0)=0.
+          swflx(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -712,14 +712,14 @@ module hycom_couple
 #endif
 !   -----------------
 !   import downward sw flux: w m-2
-    elseif (fieldName .eq. 'swflx_net2down' &
-      .or. fieldName .eq. 'swflxd') then
+    elseif (fieldName.eq.'swflx_net2down' &
+      .or. fieldName.eq.'swflxd') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           swflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          swflx(i,j,l0)=0.
+          swflx(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -758,7 +758,7 @@ module hycom_couple
 #endif
 !   -----------------
 !   import lw flux: w m-2
-    elseif (fieldName .eq. 'lwflx_net') then
+    elseif (fieldName.eq.'lwflx_net') then
       do j=1, jja
       do i=1, ii
 !       canonical unit conversion: lwflx_net (upward) -> (downward)
@@ -770,7 +770,7 @@ module hycom_couple
         if (ishlf(i,j).eq.1) then
           lwflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          lwflx(i,j,l0)=0.
+          lwflx(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -780,14 +780,14 @@ module hycom_couple
 !   -----------------
 !   import downward lw flux: w m-2
 !   +ve into ocean
-    elseif (fieldName .eq. 'lwflx_net2down' &
-      .or. fieldName .eq. 'lwflxd') then
+    elseif (fieldName.eq.'lwflx_net2down' &
+      .or. fieldName.eq.'lwflxd') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           lwflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          lwflx(i,j,l0)=0.
+          lwflx(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -796,7 +796,7 @@ module hycom_couple
 #endif
 !   -----------------
 !   import precip: m s-1
-    elseif (fieldName .eq. 'prcp') then
+    elseif (fieldName.eq.'prcp') then
       do j=1, jja
       do i=1, ii
 !       canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
@@ -808,7 +808,7 @@ module hycom_couple
         if (ishlf(i,j).eq.1) then
           precip(i,j,l0)=impData(i+i0,j+j0)
         else
-          precip(i,j,l0)=0.
+          precip(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -817,7 +817,7 @@ module hycom_couple
 #endif
 !   -----------------
 !   import surface temperature
-    elseif (fieldName .eq. 'gt') then
+    elseif (fieldName.eq.'gt') then
       do j=1, jja
       do i=1, ii
 !       canonical unit conversion: gt (K) -> (C)
@@ -829,7 +829,7 @@ module hycom_couple
         if (ishlf(i,j).eq.1) then
           surtmp(i,j,l0)=impData(i+i0,j+j0)
         else
-          surtmp(i,j,l0)=0.
+          surtmp(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -849,7 +849,7 @@ module hycom_couple
       endif
 !   -----------------
 !   import sea level pressure anomaly: Pa
-    elseif (fieldName .eq. 'mslprs') then
+    elseif (fieldName.eq.'mslprs') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
@@ -867,13 +867,13 @@ module hycom_couple
 !    import from sea ice
 !   ---------------------
 !   import ice concentration
-    elseif (fieldName .eq. 'sic') then
+    elseif (fieldName.eq.'sic') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sic_import(i,j)=impData(i+i0,j+j0)
         else
-          sic_import(i,j)=0.
+          sic_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -882,13 +882,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import ice x-stress
-    elseif (fieldName .eq. 'sitx') then
+    elseif (fieldName.eq.'sitx') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sitx_import(i,j)=impData(i+i0,j+j0)
         else
-          sitx_import(i,j)=0.
+          sitx_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -897,13 +897,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import ice y-stress
-    elseif (fieldName .eq. 'sity') then
+    elseif (fieldName.eq.'sity') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sity_import(i,j)=impData(i+i0,j+j0)
         else
-          sity_import(i,j)=0.
+          sity_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -912,13 +912,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import solar thru grid cell ave.
-    elseif (fieldName .eq. 'siqs') then
+    elseif (fieldName.eq.'siqs') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           siqs_import(i,j)=impData(i+i0,j+j0)
         else
-          siqs_import(i,j)=0.
+          siqs_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -927,13 +927,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import freeze, melt, H. Flux
-    elseif (fieldName .eq. 'sifh') then
+    elseif (fieldName.eq.'sifh') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sifh_import(i,j)=impData(i+i0,j+j0)
         else
-          sifh_import(i,j)=0.
+          sifh_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -942,13 +942,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import salt flux
-    elseif (fieldName .eq. 'sifs') then
+    elseif (fieldName.eq.'sifs') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sifs_import(i,j)=impData(i+i0,j+j0)
         else
-          sifs_import(i,j)=0.
+          sifs_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -957,13 +957,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import water flux
-    elseif (fieldName .eq. 'sifw') then
+    elseif (fieldName.eq.'sifw') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sifw_import(i,j)=impData(i+i0,j+j0)
         else
-          sifw_import(i,j)=0.
+          sifw_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -972,7 +972,7 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import sea ice temperature
-    elseif (fieldName .eq. 'sit_sfc') then
+    elseif (fieldName.eq.'sit_sfc') then
 #ifndef ESPC_NOCANONICAL_CONVERT
       do j=1, jja
       do i=1, ii
@@ -986,7 +986,7 @@ module hycom_couple
         if (ishlf(i,j).eq.1) then
           sit_import(i,j)=impData(i+i0,j+j0)
         else
-          sit_import(i,j)=0.
+          sit_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -995,13 +995,13 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import sea ice thickness
-    elseif (fieldName .eq. 'sih') then
+    elseif (fieldName.eq.'sih') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           sih_import(i,j)=impData(i+i0,j+j0)
         else
-          sih_import(i,j)=0.
+          sih_import(i,j)=0.0
         endif
       enddo
       enddo
@@ -1010,25 +1010,25 @@ module hycom_couple
 #endif
 !   ---------------------
 !   import sea ice x-velocity
-    elseif (fieldName .eq. 'siu') then
+    elseif (fieldName.eq.'siu') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           siu_import(i,j)=impData(i+i0,j+j0)
         else
-          siu_import(i,j)=0.
+          siu_import(i,j)=0.0
         endif
       enddo
       enddo
 !   ---------------------
 !   import sea ice y-velocity
-    elseif (fieldName .eq. 'siv') then
+    elseif (fieldName.eq.'siv') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
           siv_import(i,j)=impData(i+i0,j+j0)
         else
-          siv_import(i,j)=0.
+          siv_import(i,j)=0.0
         endif
       enddo
       enddo
