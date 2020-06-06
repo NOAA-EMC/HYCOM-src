@@ -373,6 +373,8 @@
 #endif
        taux,           & ! wind stress in x direction
        tauy,           & ! wind stress in y direction
+       wndspx,         & ! wind speed in x direction
+       wndspy,         & ! wind speed in y direction
        wndspd,         & ! wind speed
        ustara,         & ! ustar (tke source)
        mslprs,         & ! mean sea level pressure (anomaly)
@@ -1453,6 +1455,8 @@
       allocate( &
                  taux(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                  tauy(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
+               wndspx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
+               wndspy(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                wndspd(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                ustara(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
                mslprs(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,natm), &
@@ -1476,6 +1480,8 @@
 #endif
                  taux = 0.0 ! ESPC r_init 
                  tauy = 0.0 ! ESPC r_init
+               wndspx = 0.0
+               wndspy = 0.0
                wndspd = 0.0
                ustara = 0.0
                mslprs = 0.0 ! ESPC r_init

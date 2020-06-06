@@ -502,11 +502,11 @@ module hycom_couple
         else
           tauy(i,j,l0)=0.0
         endif
-          uij=taux(i,j,l0)
-          vij=tauy(i,j,l0)
-!         rotate to (x,y)ward
-          taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-          tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+        uij=taux(i,j,l0)
+        vij=tauy(i,j,l0)
+!       rotate to (x,y)ward
+        taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+        tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
       enddo
 #if defined(ARCTIC)
@@ -521,39 +521,39 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          taux(i,j,l0)=impData(i+i0,j+j0)
+          wndspx(i,j,l0)=impData(i+i0,j+j0)
         else
-          taux(i,j,l0)=0.0
+          wndspx(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import v wind at 10m height: ms-1
     elseif (fieldName.eq.'v10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          tauy(i,j,l0)=impData(i+i0,j+j0)
+          wndspy(i,j,l0)=impData(i+i0,j+j0)
         else
-          tauy(i,j,l0)=0.0
+          wndspy(i,j,l0)=0.0
         endif
-        uij=taux(i,j,l0)
-        vij=tauy(i,j,l0)
+        uij=wndspx(i,j,l0)
+        vij=wndspy(i,j,l0)
 !       rotate to (x,y)ward
-        taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-        tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+        wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+        wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
-      call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(wndspy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-      call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(wndspy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import wind speed: m s-1
     elseif (fieldName.eq.'wndspd10') then
@@ -1044,9 +1044,10 @@ module hycom_couple
 #else
     jja=jj
 #endif
-
+!   -----------------
 !   calculate radflx
     if (lwflag.eq.2) then
+      if (mnproc.eq.1) print *, rname//" calculating radflx..."
       do j=1, jja
       do i=1, ii
 !       radflx is defined as net lwflx+swflx, +ve into ocean
@@ -1060,6 +1061,20 @@ module hycom_couple
       if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
       call xcstop('('//rname//')')
              stop '('//rname//')'
+    endif
+!   -----------------
+!   calculate wndspd
+    if (cpl_u10.and.cpl_v10.and.(.not.cpl_wndspd)) then
+      if (mnproc.eq.1) print *, rname//" calculating wndspd..."
+      do j=1, jja
+      do i=1, ii
+!       wndspd based on u and v components
+        wndspd(i,j,l0)=sqrt((wndspx(i,j,l0)**2)+(wndspy(i,j,l0)**2))
+      enddo
+      enddo
+#if defined(ARCTIC)
+      call xctila(wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+#endif
     endif
 
 !   check CICE feedback
