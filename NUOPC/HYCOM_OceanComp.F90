@@ -53,10 +53,10 @@
                           ocn_import_forcing, &
                           hycom_couple_final
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
   use read_impexp_config_mod
   use impexpField_cdf_mod
-# endif
+#endif
 
   implicit none
   private
@@ -73,7 +73,7 @@
   type(ESMF_Clock)   :: intClock
   real               :: ocean_start_dtg, ocean_end_dtg
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
   integer :: numImpFields, numExpFields
   type(ESMF_Field), dimension(:), allocatable  :: impField
@@ -93,7 +93,7 @@
 !!Alex  character (len=10) :: base_dtg
   character (len=15) :: base_dtg
 
-# endif
+#endif
 
   integer :: end_hour,end_min,end_sec
   integer :: start_hour,start_min,start_sec
@@ -104,7 +104,7 @@
 
   logical :: show_minmax
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
 
 ! espc_timer(1): Init Phase
@@ -114,7 +114,7 @@
 ! espc_timer(5): Run Phase Core
 ! espc_timer(6): Run Phase export
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
-# endif
+#endif
 
 
 !=========================================================================================
@@ -236,7 +236,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
         call ESMF_GridCompGet(model, config=config, rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
         call HYCOM_ConfigToAttribute(config, &
           attrName="cdf_impexp_freq", attrDflt="9999", rc=rc)
@@ -324,7 +324,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
       endif
 
       ! read component attributes
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
       call ESMF_AttributeGet(model, value=value, &
         name="cdf_impexp_freq", defaultvalue="9999", &
@@ -587,7 +587,7 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 
   if (lPet.eq.0) print *,"hycom, InitializeP1 called,nPets=",nPets
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     do i=1,6
       espc_timer(i)=0.
     enddo
@@ -597,11 +597,11 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 
     call ESMF_VMWtime(timer_beg, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
     call read_impexp_config(ocn_impexp_file,numExpFields,numImpFields,expFieldName,impFieldName, &
     expStandName,impStandName,expFieldUnit,impFieldUnit, &
@@ -647,7 +647,7 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 !  show_minmax=.false.
 !#endif
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   call ESMF_VMBarrier(vm, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
@@ -658,7 +658,7 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 !  if (lPet.eq.0) print *,"hycom, InitializeP1, timer=",espc_timer(1)
   call print_timer_stat('hycom, Init1:',timer_end-timer_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
   if (lPet.eq.0) print *,"hycom, InitializeP1 end called..."
 
@@ -681,11 +681,11 @@ end subroutine InitializeP1
     type(ESMF_Grid)         :: gridIn
     type(ESMF_Grid)         :: gridOut
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
     integer :: tlb(2), tub(2)
     integer(ESMF_KIND_I4), POINTER :: iptr(:,:)
     real(ESMF_KIND_R8), POINTER :: fptr(:,:)
-# endif
+#endif
 
     integer :: i,j
     integer decomp(2)
@@ -696,7 +696,7 @@ end subroutine InitializeP1
     type(ESMF_DistGrid) :: ocnDistGrid
     type(ESMF_DistGridConnection), allocatable, dimension(:) :: connectionList
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
     type(ESMF_Field)        :: lon_field, lat_field,mask_field
     type(ESMF_Field)        :: lon_corner_field,lat_corner_field
@@ -711,7 +711,7 @@ end subroutine InitializeP1
 
     integer status
 
-# endif
+#endif
 
     rc = ESMF_SUCCESS
 
@@ -737,13 +737,13 @@ end subroutine InitializeP1
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called"
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     call ESMF_VMWtime(timer_beg, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
     if (ocean_start_dtg.lt.0.0) then
 !     start from rest
@@ -773,7 +773,7 @@ end subroutine InitializeP1
     call HYCOM_Init(mpiCommunicator,h_start_dtg,h_end_dtg)
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 !!Alex    call ocn_import_init()
     do i=1,numImpFields
       if (impFieldEnable(i)) then
@@ -783,7 +783,7 @@ end subroutine InitializeP1
     enddo
 
 
-# endif
+#endif
 
     call hycom_couple_init(nPets,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", CONTEXT)) return
@@ -800,7 +800,7 @@ end subroutine InitializeP1
     if (lPet.eq.0) print *,"hycom, itdmx,jtdmx..=",itdmx,jtdmx
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
     if (lPet.eq.0) then
       allocate(tmp_e(itdmx,jtdmx))
       allocate(tmp_c(itdmx+1,jtdmx+1))
@@ -812,7 +812,7 @@ end subroutine InitializeP1
 #endif
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
     allocate(connectionList(1)) ! one connection
     call ESMF_DistGridConnectionSet(connection=connectionList(1), &
     tileIndexA=1, tileIndexB=1, positionVector=(/itdmx, 0/), rc=rc)
@@ -853,7 +853,7 @@ end subroutine InitializeP1
 
 #endif
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
 
 ! Add ESMF grid coordinate arrays
@@ -1048,7 +1048,7 @@ end subroutine InitializeP1
   call ESMF_FieldDestroy(lat_corner_field,rc=rc)
   call ESMF_FieldDestroy(mask_field,rc=rc)
 
-# endif
+#endif
 
     gridOut = gridIn ! for now out same as in
 
@@ -1066,7 +1066,7 @@ end subroutine InitializeP1
       if (ESMF_STDERRORCHECK(rc)) return
     endif
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
     do i=1,numImpFields
 
@@ -1152,7 +1152,7 @@ end subroutine InitializeP1
     call hycom_couple_final(rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1163,7 +1163,7 @@ end subroutine InitializeP1
 !    if (lPet.eq.0) print *,"hycom, InitializeP2,timer=",espc_timer(1),timer_end-timer_beg
     call print_timer_stat('hycom, Init2:',timer_end-timer_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 end called..."
 
@@ -1195,9 +1195,9 @@ subroutine ModelAdvance(model, rc)
   real*8 :: endtime8
   real   :: endtimex
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_tmp_beg,timer_tmp_end
-# endif
+#endif
 
     rc = ESMF_SUCCESS
 
@@ -1205,13 +1205,13 @@ subroutine ModelAdvance(model, rc)
 !  return
 
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   call ESMF_VMBarrier(vm, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
   call ESMF_VMWtime(timer_beg, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
     ! query the Component for its clock, importState and exportState
     call ESMF_GridCompGet(model, clock=clock, importState=importState, &
@@ -1251,7 +1251,7 @@ subroutine ModelAdvance(model, rc)
   if (lPet.eq.0) print *,"HYCOM_OceanCom, ModelAdvance, Run ocean forward...,endtime=",endtime/24
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
     endtimex=endtime-ocean_start_dtg*24
 
@@ -1267,13 +1267,13 @@ subroutine ModelAdvance(model, rc)
 
     endif
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     call ESMF_VMWtime(timer_tmp_beg, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
 
     do i=1,numImpFields
@@ -1283,7 +1283,7 @@ subroutine ModelAdvance(model, rc)
       endif
     enddo
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1293,20 +1293,20 @@ subroutine ModelAdvance(model, rc)
     espc_timer(4)=espc_timer(4)+timer_tmp_end-timer_tmp_beg
     call print_timer_stat('hycom, Run(Import):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
 !    call redef_radflx()
 
 !ajw
 !move to mod_hycom.F
-#  ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
     call ocn_import_forcing(rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
     if (hycom_arche_output .and. begtime.eq.0) &
       call archiv_exchange  !arche file of fields exchanged with ice component
 #endif
 
-# endif
+#endif
 
     ! HERE THE MODEL ADVANCES: currTime -> currTime + timeStep
 
@@ -1328,13 +1328,13 @@ subroutine ModelAdvance(model, rc)
 
     endtime8=endtime
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     call ESMF_VMWtime(timer_tmp_beg, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
   do !until end of run
     call HYCOM_Run(endtime8/24)
@@ -1344,7 +1344,7 @@ subroutine ModelAdvance(model, rc)
 
   enddo
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1354,17 +1354,17 @@ subroutine ModelAdvance(model, rc)
     espc_timer(5)=espc_timer(5)+timer_tmp_end-timer_tmp_beg
     call print_timer_stat('hycom, Run(Core):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     call ESMF_VMWtime(timer_tmp_beg, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
     do i=1,numExpFields
       if (expFieldEnable(i)) then
@@ -1376,7 +1376,7 @@ subroutine ModelAdvance(model, rc)
 
 
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1386,12 +1386,12 @@ subroutine ModelAdvance(model, rc)
     espc_timer(6)=espc_timer(6)+timer_tmp_end-timer_tmp_beg
     call print_timer_stat('hycom, Run(Export):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
 !move to mod_hycom.F
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
     if (hycom_arche_output) call archiv_exchange  !arche file of fields exchanged with ice component
-# endif
+#endif
 
     if (ocn_esmf_exp_output.and.( (mod(endtimex,float(cdf_impexp_freq)).eq.0 .or. &
       endtimex.eq.0.5)  )) then
@@ -1404,9 +1404,9 @@ subroutine ModelAdvance(model, rc)
 
     endif
 
-# endif
+#endif
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   call ESMF_VMBarrier(vm, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1418,7 +1418,7 @@ subroutine ModelAdvance(model, rc)
 !     timer_end-timer_beg
   call print_timer_stat('hycom, Run:',timer_end-timer_beg,lPet,nPets,vm,rc)
 
-# endif
+#endif
 
   if (lPet.eq.0) print *,"hycom, ModelAdvance end..."
   if (lPet.eq.0) print *,"hycom, ModelAdvance end...",begtime,endtime
@@ -1436,25 +1436,25 @@ subroutine OCEAN_Final(model, rc)
 
 ! Local variables
   integer :: lrc, i
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   integer j,ij
   real(kind=ESMF_KIND_R8), allocatable:: espc_all_timer(:)
   real, allocatable:: all_timer(:,:)
   real timer_min(6),timer_max(6),timer_mean(6),timer_stdev(6)
-# endif
+#endif
 ! Assume failure
   rc = ESMF_FAILURE
 
 ! Report
   call ESMF_LogWrite("HYCOM finalize routine called", ESMF_LOGMSG_INFO)
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   call ESMF_VMBarrier(vm, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
   call ESMF_VMWtime(timer_beg, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
-# endif
+#endif
 
 
 
@@ -1462,7 +1462,7 @@ subroutine OCEAN_Final(model, rc)
    if (lPet.eq.0) print *,"HYCOM Final called.."
    call HYCOM_Final
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
     if (associated(expFieldName)) deallocate(expFieldName)
     if (associated(impFieldName)) deallocate(impFieldName)
@@ -1481,9 +1481,9 @@ subroutine OCEAN_Final(model, rc)
     deallocate(impField)
     deallocate(expField)
 
-# endif
+#endif
 
-# ifdef ESPC_TIMER
+#ifdef ESPC_TIMER
   call ESMF_VMBarrier(vm, rc=rc)
   if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1503,7 +1503,7 @@ subroutine OCEAN_Final(model, rc)
   call print_timer_stat('HYCOM_Run Phase(Export):',espc_timer(6),lPet,nPets,vm,rc)
 
 
-# endif
+#endif
 
   if (lPet.eq.0) print *,"hycom, OCEAN_Final end..."
 
@@ -1514,7 +1514,7 @@ subroutine OCEAN_Final(model, rc)
 end subroutine OCEAN_Final
 
 
-# ifdef ESPC_COUPLE
+#ifdef ESPC_COUPLE
 
 !=======================================================================================
 #undef METHOD
@@ -1626,7 +1626,7 @@ subroutine do_import(k,field,data_init_flag,rc)
 
 end subroutine do_import
 
-# endif
+#endif
 
 
 !=========================================================================================
