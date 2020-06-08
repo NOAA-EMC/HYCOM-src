@@ -1,22 +1,44 @@
-! ESMF macros for logging
-#define FILENAME "HYCOM_Ocean_Comp.F90"
-!#define CONTEXT  __LINE__,FILENAME,METHOD
-#define CONTEXT  line=__LINE__,file=__FILE__
-
+!===============================================================================
+! MODULE: HYCOM OCEAN ESMF Module
+!
+! DESCRIPTION:
+!   This module wraps HYCOM with NUOPC interfaces.
+!
+! SUBROUTINES:
+!   SetServices
+!     Register ESMF-NUOPC entry points.
+!
+!   InitializeP0
+!     Set initialization phase definition and read configuration attributes.
+!
+!   HYCOM_AttributeGet
+!     Read configuration attributes from model.
+!
+!   HYCOM_ConfigToAttribute
+!     Convert configuration object to model attributes.
+!
+!   InitializeP1
+!     Read field configuration and advertise fields.
+!
+!   InitializeP2
+!     Initialize HYCOM model, create ESMF grid, create ESMF fields, realize ESMF
+!     fields.
+!
+!   ModelAdvance
+!     Copy import data to HYCOM, advance HYCOM, copy HYCOM data to export.
+!
+!   OCEAN_Final
+!     Deallocate memory and print timers.
+!
+!   do_export
+!     Copy HYCOM data to export field.
+!
+!   do_import
+!     Copy import field to HYCOM data.
+!
+!===============================================================================
 #include "HYCOM_NUOPC_Macros.h"
-
-! Define ESMF real kind to match HYCOM single/double precision
-#if defined(ESPC_IMPEXP_SINGLE)
-#define ESMF_KIND_RX ESMF_KIND_R4
-#define ESMF_TYPEKIND_RX ESMF_TYPEKIND_R4
-#else
-#define ESMF_KIND_RX ESMF_KIND_R8
-#define ESMF_TYPEKIND_RX ESMF_TYPEKIND_R8
-#endif
-
-!=========================================================================================
-! HYCOM OCEAN ESMF Module
-!=========================================================================================
+!===============================================================================
 #if defined ESPC_OCN
   module OCEAN_Mod
 #define MODNAME "OCEAN_Mod"
@@ -24,8 +46,10 @@
   module HYCOM_Mod
 #define MODNAME "HYCOM_Mod"
 #endif
-
-! ESMF Framework module
+!===============================================================================
+! use modules
+!===============================================================================
+! ESMF framework modules
   USE ESMF
   use NUOPC
   use HYCOM_ESMF_Extensions
@@ -33,7 +57,6 @@
     model_routine_SS    => SetServices, &
     model_label_Advance => label_Advance, &
     model_label_Finalize => label_Finalize
-
 ! HYCOM OCEAN forecast module
   use mod_hycom, only : end_of_run_cpl, &
                         end_of_run, &
@@ -53,14 +76,21 @@
   use impexpField_cdf_mod
 #endif
 
+!===============================================================================
+! settings
+!===============================================================================
   implicit none
   private
   save
 
-! public member functions
+!===============================================================================
+! public
+!===============================================================================
   public SetServices
 
-! Miscellaneous
+!===============================================================================
+! module variables
+!===============================================================================
   type(ESMF_VM)      :: vm
 !  integer            :: mpiCommunicator
   integer            :: nPets, lPet
@@ -99,19 +129,17 @@
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
 #endif
 
-!=========================================================================================
-! HYCOM OCEAN ESMF Module Subroutines
-!=========================================================================================
+!===============================================================================
 CONTAINS
-
+!===============================================================================
 #undef METHOD
 #define METHOD "SetServices"
 subroutine SetServices(model, rc)
-! Calling parameters
+! arguments
   type(ESMF_GridComp) :: model
   integer,INTENT(OUT) :: rc
+! local variables
 
-! Assume failure
   rc = ESMF_FAILURE
 
     ! the NUOPC model component will register the generic methods
@@ -141,20 +169,21 @@ subroutine SetServices(model, rc)
        specRoutine=OCEAN_Final, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="set final entry point failed", CONTEXT)) return
 
-!   return success
     rc = ESMF_SUCCESS
 
 end subroutine SetServices
 
-!======================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "InitializeP0"
 subroutine InitializeP0(model, importState, exportState, clock, rc)
+!   arguments
     type(ESMF_GridComp)  :: model
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
-    ! local variables
+!   local variables
     character(32)              :: cname
     character(*), parameter    :: rname="InitializeP0"
     integer                    :: verbosity, diagnostic
@@ -191,11 +220,12 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-  contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     subroutine HYCOM_AttributeGet(rc)
+!     arguments
       integer, intent(out) :: rc
-      ! local variables
+!     local variables
       logical                    :: configIsPresent
       type(ESMF_Config)          :: config
       type(NUOPC_FreeFormat)     :: attrFF
@@ -511,14 +541,15 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
 
     end subroutine HYCOM_AttributeGet
 
-    !======================================================================
+  !-----------------------------------------------------------------------------
 
     subroutine HYCOM_ConfigToAttribute(config, attrName, attrDflt, rc)
+!     arguments
       type(ESMF_Config),intent(inout)      :: config
       character(len=*),intent(in)          :: attrName
       character(len=*),intent(in),optional :: attrDflt
       integer,intent(out)                  :: rc
-      ! local variables
+!     local variables
       character(len=64) :: value
 
       call ESMF_ConfigGetAttribute(config, value, &
@@ -535,14 +566,17 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
 
 end subroutine InitializeP0
 
-!======================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "InitializeP1"
 subroutine InitializeP1(model, importState, exportState, clock, rc)
+!   arguments
     type(ESMF_GridComp)  :: model
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
+!   local variables
     integer i,irc
 
     rc = ESMF_SUCCESS
@@ -626,15 +660,17 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 
 end subroutine InitializeP1
 
-!======================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "InitializeP2"
   subroutine InitializeP2(model, importState, exportState, clock, rc)
+!   arguments
     type(ESMF_GridComp)  :: model
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
-    ! local variables
+!   local variables
     character(32)           :: cname
     character(*), parameter :: rname="InitializeP2"
     integer                 :: verbosity, diagnostic
@@ -1100,13 +1136,15 @@ end subroutine InitializeP1
 
 end subroutine InitializeP2
 
-!======================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "ModelAdvance"
 subroutine ModelAdvance(model, rc)
+!   arguments
     type(ESMF_GridComp)  :: model
     integer, intent(out) :: rc
-    ! local variables
+!   local variables
     type(ESMF_Clock)              :: clock
     type(ESMF_State)              :: importState, exportState
     integer i,status
@@ -1333,13 +1371,15 @@ subroutine ModelAdvance(model, rc)
   if (lPet.eq.0) print *,"hycom, ModelAdvance end...",begtime,endtime
 end subroutine ModelAdvance
 
-!======================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "OCEAN_Final"
 subroutine OCEAN_Final(model, rc)
+! arguments
   type(ESMF_GridComp) :: model
   integer,INTENT(OUT) :: rc
-! Local variables
+! local variables
   integer :: lrc, i
 #ifdef ESPC_TIMER
   integer j,ij
@@ -1347,7 +1387,7 @@ subroutine OCEAN_Final(model, rc)
   real, allocatable:: all_timer(:,:)
   real timer_min(6),timer_max(6),timer_mean(6),timer_stdev(6)
 #endif
-! Assume failure
+
   rc = ESMF_FAILURE
 
 ! Report
@@ -1405,17 +1445,18 @@ subroutine OCEAN_Final(model, rc)
 
   if (lPet.eq.0) print *,"hycom, OCEAN_Final end..."
 
-! return success
   rc = ESMF_SUCCESS
 
-!end subroutine HYCOM_OCEAN_Final
 end subroutine OCEAN_Final
 
+  !-----------------------------------------------------------------------------
+
 #ifdef ESPC_COUPLE
-!=======================================================================================
 #undef METHOD
 #define METHOD "do_export"
 subroutine do_export(k,field,rc)
+!   arguments
+!   local variables
     integer k,i,j
     type(ESMF_Field)        :: field
     real*8, allocatable, dimension(:,:) :: expData
@@ -1458,15 +1499,17 @@ subroutine do_export(k,field,rc)
 
     if (allocated(expData)) deallocate(expData)
 
-!  return success
    rc = ESMF_SUCCESS
 
 end subroutine do_export
 
-!=======================================================================================
+  !-----------------------------------------------------------------------------
+
 #undef METHOD
 #define METHOD "do_import"
 subroutine do_import(k,field,data_init_flag,rc)
+!   arguments
+!   local variables
     integer k,i,j
     type(ESMF_Field)        :: field
     real*8, allocatable, dimension(:,:) :: impData
@@ -1505,17 +1548,16 @@ subroutine do_import(k,field,data_init_flag,rc)
 
     if (allocated(impData)) deallocate(impData)
 
-!  return success
    rc = ESMF_SUCCESS
 
 end subroutine do_import
 #endif
 
-!=========================================================================================
-!end module HYCOM_OCEAN_Mod
+!===============================================================================
 #if defined ESPC_OCN
 end module OCEAN_Mod
 #else
 end module HYCOM_Mod
 #endif
+!===============================================================================
 
