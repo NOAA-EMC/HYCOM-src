@@ -40,17 +40,17 @@
 #include "HYCOM_NUOPC_Macros.h"
 !===============================================================================
 #if defined ESPC_OCN
-  module OCEAN_Mod
+module OCEAN_Mod
 #define MODNAME "OCEAN_Mod"
 #else
-  module HYCOM_Mod
+module HYCOM_Mod
 #define MODNAME "HYCOM_Mod"
 #endif
 !===============================================================================
 ! use modules
 !===============================================================================
 ! ESMF framework modules
-  USE ESMF
+  use ESMF
   use NUOPC
   use HYCOM_ESMF_Extensions
   use NUOPC_Model, only: &
@@ -92,55 +92,54 @@
 ! module variables
 !===============================================================================
   type(ESMF_VM)      :: vm
-!  integer            :: mpiCommunicator
   integer            :: nPets, lPet
   integer, parameter :: localDE=0
   type(ESMF_Clock)   :: intClock
   real               :: ocean_start_dtg, ocean_end_dtg
 #ifdef ESPC_COUPLE
-  integer :: numImpFields, numExpFields
-  type(ESMF_Field), dimension(:), allocatable  :: impField
-  type(ESMF_Field), dimension(:), allocatable  :: expField
-  character(len=30), pointer :: expFieldName(:),impFieldName(:) => NULL()
-  character(len=60), pointer :: expStandName(:),impStandName(:) => NULL()
-  character(len=30), pointer :: expFieldUnit(:),impFieldUnit(:) => NULL()
-  logical, pointer           :: expFieldEnable(:),impFieldEnable(:) => NULL()
+  integer                        :: numImpFields, numExpFields
+  type(ESMF_Field), allocatable  :: impField(:)
+  type(ESMF_Field), allocatable  :: expField(:)
+  character(len=30), pointer :: expFieldName(:), impFieldName(:) => NULL()
+  character(len=60), pointer :: expStandName(:), impStandName(:) => NULL()
+  character(len=30), pointer :: expFieldUnit(:), impFieldUnit(:) => NULL()
+  logical, pointer           :: expFieldEnable(:), impFieldEnable(:) => NULL()
   character(len=30) :: ocn_impexp_file
-  integer :: cdf_impexp_freq
-  integer :: cpl_hour, cpl_min, cpl_sec
-  real    :: cpl_time_step
-  logical :: ocn_esmf_exp_output, ocn_esmf_imp_output, hycom_arche_output
-!!Alex  character (len=10) :: base_dtg
-  character (len=15) :: base_dtg
+  integer           :: cdf_impexp_freq
+  integer           :: cpl_hour, cpl_min, cpl_sec
+  real              :: cpl_time_step
+  logical           :: ocn_esmf_exp_output, ocn_esmf_imp_output
+  logical           :: hycom_arche_output
+  character(len=15) :: base_dtg
 #endif
-  integer :: end_hour,end_min,end_sec
-  integer :: start_hour,start_min,start_sec
-  real :: endtime
-  integer :: itdmx, jtdmx
-  logical :: show_minmax
+  integer           :: end_hour, end_min, end_sec
+  integer           :: start_hour, start_min, start_sec
+  real              :: endtime
+  integer           :: itdmx, jtdmx
+  logical           :: show_minmax
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
+  real(kind=ESMF_KIND_R8) :: espc_timer(6)
 ! espc_timer(1): Init Phase
 ! espc_timer(2): Run Phase
 ! espc_timer(3): Final Phase
 ! espc_timer(4): Run Phase import
 ! espc_timer(5): Run Phase Core
 ! espc_timer(6): Run Phase export
-  real(kind=ESMF_KIND_R8) :: espc_timer(6)
 #endif
 
 !===============================================================================
-CONTAINS
+  contains
 !===============================================================================
-#undef METHOD
-#define METHOD "SetServices"
-subroutine SetServices(model, rc)
-! arguments
-  type(ESMF_GridComp) :: model
-  integer,INTENT(OUT) :: rc
-! local variables
+  subroutine SetServices(model, rc)
+!   arguments
+    type(ESMF_GridComp)  :: model
+    integer, intent(out) :: rc
+!   local variables
+    character(32)           :: cname
+    character(*), parameter :: rname="SetServices"
 
-  rc = ESMF_FAILURE
+    rc = ESMF_FAILURE
 
     ! the NUOPC model component will register the generic methods
     call NUOPC_CompDerive(model, model_routine_SS, rc=rc)
@@ -166,29 +165,28 @@ subroutine SetServices(model, rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     call NUOPC_CompSpecialize(model, specLabel=model_label_Finalize, &
-       specRoutine=OCEAN_Final, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="set final entry point failed", CONTEXT)) return
+      specRoutine=OCEAN_Final, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="set final entry point failed", &
+      CONTEXT)) return
 
     rc = ESMF_SUCCESS
 
-end subroutine SetServices
+  end subroutine SetServices
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "InitializeP0"
-subroutine InitializeP0(model, importState, exportState, clock, rc)
+  subroutine InitializeP0(model, importState, exportState, clock, rc)
 !   arguments
     type(ESMF_GridComp)  :: model
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 !   local variables
-    character(32)              :: cname
-    character(*), parameter    :: rname="InitializeP0"
-    integer                    :: verbosity, diagnostic
-    character(len=64)          :: value
-    integer                    :: stat
+    character(32)           :: cname
+    character(*), parameter :: rname="InitializeP0"
+    integer                 :: verbosity, diagnostic
+    character(len=64)       :: value
+    integer                 :: stat
 
     rc = ESMF_SUCCESS
 
@@ -220,17 +218,20 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-  contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     subroutine HYCOM_AttributeGet(rc)
 !     arguments
       integer, intent(out) :: rc
 !     local variables
-      logical                    :: configIsPresent
-      type(ESMF_Config)          :: config
-      type(NUOPC_FreeFormat)     :: attrFF
-      character(len=64)          :: value
-      character(ESMF_MAXSTR)     :: logMsg
+      character(*), parameter :: rname="HYCOM_AttributeGet"
+      logical                 :: configIsPresent
+      type(ESMF_Config)       :: config
+      type(NUOPC_FreeFormat)  :: attrFF
+      character(len=64)       :: value
+      character(ESMF_MAXSTR)  :: logMsg
+
+      rc = ESMF_SUCCESS
 
       ! check model for config
       call ESMF_GridCompGet(model, configIsPresent=configIsPresent, rc=rc)
@@ -424,7 +425,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
         msg="attribute get hyc_impexp_file failed", CONTEXT)) return
       show_minmax = (trim(value)==".true.")
 
-!     Start Time
+!     start Time
       call ESMF_AttributeGet(model, value=value, &
         name="ocean_start_dtg", &
         convention="NUOPC", purpose="Instance", rc=rc)
@@ -454,7 +455,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
       start_sec = ESMF_UtilString2Int(value, rc=rc)
       if (ESMF_STDERRORCHECK(rc)) return
 
-!     End Time
+!     end Time
       call ESMF_AttributeGet(model, value=value, &
         name="end_hour", defaultvalue="0", &
         convention="NUOPC", purpose="Instance", rc=rc)
@@ -477,7 +478,7 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
       end_sec = ESMF_UtilString2Int(value, rc=rc)
       if (ESMF_STDERRORCHECK(rc)) return
 
-!     Log Configuration Settings
+!     log configuration settings
       if (btest(verbosity,16)) then
         call ESMF_LogWrite(trim(cname)//": Settings",ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
@@ -541,16 +542,17 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
 
     end subroutine HYCOM_AttributeGet
 
-  !-----------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
 
     subroutine HYCOM_ConfigToAttribute(config, attrName, attrDflt, rc)
 !     arguments
-      type(ESMF_Config),intent(inout)      :: config
-      character(len=*),intent(in)          :: attrName
-      character(len=*),intent(in),optional :: attrDflt
-      integer,intent(out)                  :: rc
+      type(ESMF_Config), intent(inout)       :: config
+      character(len=*), intent(in)           :: attrName
+      character(len=*), intent(in), optional :: attrDflt
+      integer, intent(out)                   :: rc
 !     local variables
-      character(len=64) :: value
+      character(*), parameter :: rname="HYCOM_ConfigToAttribute"
+      character(len=64)       :: value
 
       call ESMF_ConfigGetAttribute(config, value, &
         label=trim(attrName)//"=", default=attrDflt, rc=rc)
@@ -564,31 +566,32 @@ subroutine InitializeP0(model, importState, exportState, clock, rc)
 
     end subroutine HYCOM_ConfigToAttribute
 
-end subroutine InitializeP0
+  end subroutine InitializeP0
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "InitializeP1"
-subroutine InitializeP1(model, importState, exportState, clock, rc)
+  subroutine InitializeP1(model, importState, exportState, clock, rc)
 !   arguments
     type(ESMF_GridComp)  :: model
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 !   local variables
-    integer i,irc
+    character(32)           :: cname
+    character(*), parameter :: rname="InitializeP1"
+    integer                 :: i, irc
 
     rc = ESMF_SUCCESS
 
 !   Get VM info
     call ESMF_GridCompGet(model, vm=vm, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="GridCompGet failed", CONTEXT)) return
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="GridCompGet failed", &
+      CONTEXT)) return
 
     call ESMF_VMGet(vm, petCount=nPets,localPet=lPet,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="VMGet failed", CONTEXT)) return
 
-  if (lPet.eq.0) print *,"hycom, InitializeP1 called,nPets=",nPets
+    if (lPet.eq.0) print *,"hycom, InitializeP1 called,nPets=",nPets
 
 #ifdef ESPC_TIMER
     do i=1,6
@@ -603,22 +606,26 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 #endif
 
 #ifdef ESPC_COUPLE
-    call read_impexp_config(ocn_impexp_file,numExpFields,numImpFields,expFieldName,impFieldName, &
-    expStandName,impStandName,expFieldUnit,impFieldUnit, &
-    expFieldEnable,impFieldEnable,irc)
+    call read_impexp_config(ocn_impexp_file,numExpFields,numImpFields,&
+    expFieldName,impFieldName,expStandName,impStandName,expFieldUnit,&
+    impFieldUnit,expFieldEnable,impFieldEnable,irc)
 
     allocate(impField(numImpFields))
     allocate(expField(numExpFields))
 
-    if (lPet.eq.0) print *,"hycom,expFieldName=",(expFieldName(i),i=1,numExpFields)
-    if (lPet.eq.0) print *,"hycom,expFieldEnable=",(expFieldEnable(i),i=1,numExpFields)
-    if (lPet.eq.0) print *,"hycom,impFieldName=",(impFieldName(i),i=1,numImpFields)
-    if (lPet.eq.0) print *,"hycom,impFieldEnable=",(impFieldEnable(i),i=1,numImpFields)
+    if (lPet.eq.0) print *,"hycom,expFieldName=", &
+      (expFieldName(i),i=1,numExpFields)
+    if (lPet.eq.0) print *,"hycom,expFieldEnable=", &
+      (expFieldEnable(i),i=1,numExpFields)
+    if (lPet.eq.0) print *,"hycom,impFieldName=", &
+      (impFieldName(i),i=1,numImpFields)
+    if (lPet.eq.0) print *,"hycom,impFieldEnable=", &
+      (impFieldEnable(i),i=1,numImpFields)
 
     do i=1,numImpFields
-
       if (impFieldEnable(i)) then
-        if (lPet.eq.0) print *,"hycom,import field advertised, name=",impFieldName(i),impStandName(i)
+        if (lPet.eq.0) print *,"hycom,import field advertised, name=", &
+          impFieldName(i),impStandName(i)
 
         call NUOPC_Advertise(importState, name=impFieldName(i), &
         StandardName=impStandName(i), rc=rc)
@@ -628,12 +635,12 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 
     do i=1,numExpFields
       if (expFieldEnable(i)) then
-        if (lPet.eq.0) print *,"hycom,export field advertised, name=",expFieldName(i),expStandName(i)
+        if (lPet.eq.0) print *,"hycom,export field advertised, name=", &
+          expFieldName(i),expStandName(i)
 
         call NUOPC_Advertise(exportState, name=expFieldName(i), &
         StandardName=expStandName(i), rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
-
       endif
     enddo
 #endif
@@ -645,25 +652,23 @@ subroutine InitializeP1(model, importState, exportState, clock, rc)
 !#endif
 
 #ifdef ESPC_TIMER
-  call ESMF_VMBarrier(vm, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMBarrier(vm, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_VMWtime(timer_end, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMWtime(timer_end, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  espc_timer(1)=timer_end-timer_beg
-!  if (lPet.eq.0) print *,"hycom, InitializeP1, timer=",espc_timer(1)
-  call print_timer_stat('hycom, Init1:',timer_end-timer_beg,lPet,nPets,vm,rc)
+    espc_timer(1)=timer_end-timer_beg
+!   if (lPet.eq.0) print *,"hycom, InitializeP1, timer=",espc_timer(1)
+    call print_timer_stat('hycom, Init1:',timer_end-timer_beg,lPet,nPets,vm,rc)
 #endif
 
-  if (lPet.eq.0) print *,"hycom, InitializeP1 end called..."
+    if (lPet.eq.0) print *,"hycom, InitializeP1 end called..."
 
-end subroutine InitializeP1
+  end subroutine InitializeP1
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "InitializeP2"
   subroutine InitializeP2(model, importState, exportState, clock, rc)
 !   arguments
     type(ESMF_GridComp)  :: model
@@ -671,34 +676,35 @@ end subroutine InitializeP1
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 !   local variables
-    character(32)           :: cname
-    character(*), parameter :: rname="InitializeP2"
-    integer                 :: verbosity, diagnostic
-    character(len=64)       :: value
-    type(ESMF_Grid)         :: gridIn
-    type(ESMF_Grid)         :: gridOut
+    character(32)                   :: cname
+    character(*), parameter         :: rname="InitializeP2"
+    integer                         :: verbosity, diagnostic
+    character(len=64)               :: value
+    type(ESMF_Grid)                 :: gridIn
+    type(ESMF_Grid)                 :: gridOut
 #ifdef ESPC_COUPLE
-    integer :: tlb(2), tub(2)
-    integer(ESMF_KIND_I4), POINTER :: iptr(:,:)
-    real(ESMF_KIND_R8), POINTER :: fptr(:,:)
+    integer                         :: tlb(2), tub(2)
+    integer(ESMF_KIND_I4), pointer  :: iptr(:,:)
+    real(ESMF_KIND_R8), pointer     :: fptr(:,:)
 #endif
-    integer :: i,j
-    integer decomp(2)
-    real*8 h_start_dtg,h_end_dtg
-    integer mpiCommunicator
-    type(ESMF_DistGrid) :: ocnDistGrid
-    type(ESMF_DistGridConnection), allocatable, dimension(:) :: connectionList
+    integer                         :: i, j
+    integer                         :: decomp(2)
+    real*8                          :: h_start_dtg, h_end_dtg
+    integer                         :: mpiCommunicator
+    type(ESMF_DistGrid)             :: ocnDistGrid
+    type(ESMF_DistGridConnection), allocatable :: connectionList(:)
 #ifdef ESPC_COUPLE
-    type(ESMF_Field)        :: lon_field, lat_field,mask_field
-    type(ESMF_Field)        :: lon_corner_field,lat_corner_field
-    real(ESMF_KIND_R8), dimension(:,:), pointer :: lon_data,lat_data,mask_data
-    real(ESMF_KIND_R8), dimension(:,:), pointer :: lon_corner_data
-    real(ESMF_KIND_R8), dimension(:,:), pointer :: lat_corner_data
-    type(ESMF_ArraySpec) :: arraySpec2Dr
-    real(kind=ESMF_KIND_R8), allocatable, dimension(:,:) :: tmp_e
-    real(kind=ESMF_KIND_R8), allocatable, dimension(:,:) :: tmp_c
-    logical :: isConnected
-    integer status
+    type(ESMF_Field)                :: lon_field, lat_field, mask_field
+    type(ESMF_Field)                :: lon_corner_field, lat_corner_field
+    real(ESMF_KIND_R8), pointer     :: lon_data(:,:), lat_data(:,:)
+    real(ESMF_KIND_R8), pointer     :: mask_data(:,:)
+    real(ESMF_KIND_R8), pointer     :: lon_corner_data(:,:)
+    real(ESMF_KIND_R8), pointer     :: lat_corner_data(:,:)
+    type(ESMF_ArraySpec)            :: arraySpec2Dr
+    real(ESMF_KIND_R8), allocatable :: tmp_e(:,:)
+    real(ESMF_KIND_R8), allocatable :: tmp_c(:,:)
+    logical                         :: isConnected
+    integer                         :: status
 #endif
 
     rc = ESMF_SUCCESS
@@ -764,13 +770,15 @@ end subroutine InitializeP1
     do i=1,numImpFields
       if (impFieldEnable(i)) then
         call set_hycom_import_flag(i,impFieldName(i),rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, msg="set_hycom_import_flag failed", CONTEXT)) return
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg="set_hycom_import_flag failed", CONTEXT)) return
       endif
     enddo
 #endif
 
     call hycom_couple_init(nPets,rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", CONTEXT)) return
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", &
+      CONTEXT)) return
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called 2,idim_size,jdim_size", &
        cpldom%idim_size,cpldom%jdim_size
@@ -798,240 +806,263 @@ end subroutine InitializeP1
     call ESMF_DistGridConnectionSet(connection=connectionList(1), &
     tileIndexA=1, tileIndexB=1, positionVector=(/itdmx, 0/), rc=rc)
 
-!    ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/itdmx,jtdmx/), &
-!      indexflag=ESMF_INDEX_GLOBAL, &
-!      deBlockList=cpldom%deBList,connectionList=connectionList,rc=rc)
-!    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
+!   ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), &
+!     maxIndex=(/itdmx,jtdmx/), indexflag=ESMF_INDEX_GLOBAL, &
+!     deBlockList=cpldom%deBList,connectionList=connectionList,rc=rc)
+!   if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", &
+!     CONTEXT)) return
 
     ! create new grid
     ocnDistGrid = ESMF_DistGridCreate(minIndex=(/1,1/), &
-       maxIndex=(/itdmx,jtdmx/), indexflag=ESMF_INDEX_GLOBAL, &
-       deBlockList=cpldom%deBList, rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
+      maxIndex=(/itdmx,jtdmx/), indexflag=ESMF_INDEX_GLOBAL, &
+      deBlockList=cpldom%deBList, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", &
+      CONTEXT)) return
 
     gridIn = ESMF_GridCreate(distGrid=ocnDistGrid, &
-            indexflag=ESMF_INDEX_GLOBAL, &
-            coordSys=ESMF_COORDSYS_SPH_DEG, &
-            name="OCEAN:grid", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
+      indexflag=ESMF_INDEX_GLOBAL, coordSys=ESMF_COORDSYS_SPH_DEG, &
+      name="OCEAN:grid", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", &
+      CONTEXT)) return
 
     if (allocated(connectionList))deallocate(connectionList)
 #else
-   do i=int(sqrt(real(nPets))),2,-1
+    do i=int(sqrt(real(nPets))),2,-1
       if (mod(nPets,i).eq.0) exit
     enddo
     decomp=(/nPets/i,i/)
     if (lPet.eq.0) print *,"nPets,decomp=",nPets,decomp
 
     gridIn = ESMF_GridCreate1PeriDim(minIndex=(/1,1/), &
-            maxIndex=(/cpldom%idim_size,cpldom%jdim_size/), &
-            indexflag=ESMF_INDEX_GLOBAL, &
-            regDecomp=decomp, name="OCEAN:grid", rc=rc)
-    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", CONTEXT)) return
+      maxIndex=(/cpldom%idim_size,cpldom%jdim_size/), &
+      indexflag=ESMF_INDEX_GLOBAL, &
+      regDecomp=decomp, name="OCEAN:grid", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid create failed", &
+      CONTEXT)) return
 #endif
 
 #ifdef ESPC_COUPLE
-! Add ESMF grid coordinate arrays
-  call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add coord failed", CONTEXT)) return
+!   add ESMF grid coordinate arrays
+    call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add coord failed", &
+      CONTEXT)) return
 
-! Add ESMF grid corner coordinate arrays
-  call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add corner coord failed", CONTEXT)) return
+!   add ESMF grid corner coordinate arrays
+    call ESMF_GridAddCoord(gridIn, staggerLoc=ESMF_STAGGERLOC_CORNER, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add corner coord failed", &
+      CONTEXT)) return
 
-! Add ESMF mask array
-  call ESMF_GridAddItem(gridIn, itemflag=ESMF_GRIDITEM_MASK, &
-       staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add mask failed", CONTEXT)) return
+!   add ESMF mask array
+    call ESMF_GridAddItem(gridIn, itemflag=ESMF_GRIDITEM_MASK, &
+      staggerLoc=ESMF_STAGGERLOC_CENTER, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid add mask failed", &
+      CONTEXT)) return
 
     if ((ocn_esmf_imp_output.or.ocn_esmf_exp_output).and.lPet.eq.0) then
-
       call impexp_cdf_put_latlonmsk('hycom',itdmx,jtdmx,cpldom%lat_p, &
         cpldom%lon_p,cpldom%mask_p,status,rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
       call impexp_cdf_put_latlonmsk('hycom-orig',cpldom%idim_size,&
         cpldom%jdim_size,cpldom%lat_p,cpldom%lon_p,cpldom%mask_p,status,rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="impexp_cdf_put_latlonmsk failed", CONTEXT)) return
 
-      call impexp_cdf_put_latlonmsk_corner('hycom',cpldom%idim_size,cpldom%jdim_size, &
-        cpldom%lat_p,cpldom%lon_p,int(cpldom%mask_p),cpldom%lat_q,cpldom%lon_q,status,rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_latlonmsk_corner failed", CONTEXT)) return
-
+      call impexp_cdf_put_latlonmsk_corner('hycom',cpldom%idim_size, &
+        cpldom%jdim_size,cpldom%lat_p,cpldom%lon_p,int(cpldom%mask_p), &
+        cpldom%lat_q,cpldom%lon_q,status,rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="impexp_cdf_put_latlonmsk_corner failed", CONTEXT)) return
     endif
 
-  call ESMF_ArraySpecSet(arraySpec2Dr, rank=2, typekind=ESMF_TYPEKIND_R8, rc=rc)
+    call ESMF_ArraySpecSet(arraySpec2Dr, rank=2, typekind=ESMF_TYPEKIND_R8, &
+      rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  lon_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
-                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
-                  name=TRIM("lon_field"), rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    lon_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+      indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      name=TRIM("lon_field"), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  if (lPet.eq.0) then
-    do i=1,itdmx
-    do j=1,jtdmx
-      tmp_e(i,j)=cpldom%lon_p(i,j)
-    enddo
-    enddo
-  endif
+    if (lPet.eq.0) then
+      do i=1,itdmx
+      do j=1,jtdmx
+        tmp_e(i,j)=cpldom%lon_p(i,j)
+      enddo
+     enddo
+    endif
 
-  call ESMF_FieldScatter(lon_field,tmp_e,rootPet=0,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldScatter(lon_field,tmp_e,rootPet=0,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  lat_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
-                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
-                  name=TRIM("lat_field"), rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    lat_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+      indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      name=TRIM("lat_field"), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  if (lPet.eq.0) then
-    do i=1,itdmx
-    do j=1,jtdmx
-      tmp_e(i,j)=cpldom%lat_p(i,j)
-    enddo
-    enddo
-  endif
+    if (lPet.eq.0) then
+      do i=1,itdmx
+      do j=1,jtdmx
+        tmp_e(i,j)=cpldom%lat_p(i,j)
+      enddo
+      enddo
+    endif
 
-  call ESMF_FieldScatter(lat_field,tmp_e,rootPet=0,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldScatter(lat_field,tmp_e,rootPet=0,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-!corner
-  lon_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
-                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-                  name=TRIM("lon_corner_field"), rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+!   corner
+    lon_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+      indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      name=TRIM("lon_corner_field"), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  if (lPet.eq.0) then
-    do i=1,itdmx
-    do j=1,jtdmx
-      tmp_c(i,j)=cpldom%lon_q(i,j)
-    enddo
-    enddo
+    if (lPet.eq.0) then
+      do i=1,itdmx
+      do j=1,jtdmx
+        tmp_c(i,j)=cpldom%lon_q(i,j)
+      enddo
+      enddo
 
-    ! fill edges
-    do i=1,itdmx
-      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lon_q(i,jtdmx)-cpldom%lon_q(i,jtdmx-1))
-    end do
-    do j=1,jtdmx
-      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lon_q(itdmx,j)-cpldom%lon_q(itdmx-1,j))
-    end do
-    tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
+!     fill edges
+      do i=1,itdmx
+        tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lon_q(i,jtdmx)- &
+          cpldom%lon_q(i,jtdmx-1))
+      end do
+      do j=1,jtdmx
+        tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lon_q(itdmx,j)- &
+          cpldom%lon_q(itdmx-1,j))
+      end do
+      tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)- &
+        tmp_c(itdmx-1,jtdmx-1))
+    endif
 
-  endif
+    call ESMF_FieldScatter(lon_corner_field,tmp_c,rootPet=0,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldScatter(lon_corner_field,tmp_c,rootPet=0,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    lat_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+      indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      name=TRIM("lat_corner_field"), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  lat_corner_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
-                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CORNER, &
-                  name=TRIM("lat_corner_field"), rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    if (lPet.eq.0) then
+      do i=1,itdmx
+      do j=1,jtdmx
+        tmp_c(i,j)=cpldom%lat_q(i,j)
+      enddo
+      enddo
 
-  if (lPet.eq.0) then
-    do i=1,itdmx
-    do j=1,jtdmx
-      tmp_c(i,j)=cpldom%lat_q(i,j)
-    enddo
-    enddo
+!     fill edges
+      do i=1,itdmx
+        tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lat_q(i,jtdmx)- &
+          cpldom%lat_q(i,jtdmx-1))
+      end do
+      do j=1,jtdmx
+        tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lat_q(itdmx,j)- &
+          cpldom%lat_q(itdmx-1,j))
+      end do
+      tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)- &
+        tmp_c(itdmx-1,jtdmx-1))
+    endif
 
-    ! fill edges
-    do i=1,itdmx
-      tmp_c(i,jtdmx+1)=tmp_c(i,jtdmx)+(cpldom%lat_q(i,jtdmx)-cpldom%lat_q(i,jtdmx-1))
-    end do
-    do j=1,jtdmx
-      tmp_c(itdmx+1,j)=tmp_c(itdmx,j)+(cpldom%lat_q(itdmx,j)-cpldom%lat_q(itdmx-1,j))
-    end do
-    tmp_c(itdmx+1,jtdmx+1)=tmp_c(itdmx,jtdmx)+(tmp_c(itdmx,jtdmx)-tmp_c(itdmx-1,jtdmx-1))
-  endif
+    call ESMF_FieldScatter(lat_corner_field,tmp_c,rootPet=0,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldScatter(lat_corner_field,tmp_c,rootPet=0,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    mask_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
+      indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      name=TRIM("mask_field"), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  mask_field = ESMF_FieldCreate(gridIn, arraySpec2Dr, &
-                  indexFlag=ESMF_INDEX_GLOBAL, staggerLoc=ESMF_STAGGERLOC_CENTER, &
-                  name=TRIM("mask_field"), rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    if (lPet.eq.0) then
+      do i=1,itdmx
+      do j=1,jtdmx
+        tmp_e(i,j)=cpldom%mask_p(i,j)
+      enddo
+      enddo
+    endif
 
-  if (lPet.eq.0) then
-    do i=1,itdmx
-    do j=1,jtdmx
-      tmp_e(i,j)=cpldom%mask_p(i,j)
-    enddo
-    enddo
-  endif
+    call ESMF_FieldScatter(mask_field,tmp_e,rootPet=0,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldScatter(mask_field,tmp_e,rootPet=0,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(lon_field,localDE,lon_data,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldGet(lon_field,localDE,lon_data,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(lat_field,localDE,lat_data,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldGet(lat_field,localDE,lat_data,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(lon_corner_field,localDE,lon_corner_data,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldGet(lon_corner_field,localDE,lon_corner_data,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(lat_corner_field,localDE,lat_corner_data,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldGet(lat_corner_field,localDE,lat_corner_data,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(mask_field,localDE,mask_data,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_FieldGet(mask_field,localDE,mask_data,rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+!   copy in coordinate data
+    call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=1, &
+      staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 1 failed", &
+      CONTEXT)) return
+!   fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_e(tlb(1):tub(1),tlb(2):tub(2))
+    fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_data(tlb(1):tub(1),tlb(2):tub(2))
 
-! Copy in coordinate data
-  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=1, &
-       staggerLoc=ESMF_STAGGERLOC_CENTER, &
-       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 1 failed", CONTEXT)) return
-!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_e(tlb(1):tub(1),tlb(2):tub(2))
-  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_data(tlb(1):tub(1),tlb(2):tub(2))
+    call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=2, &
+      staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 2 failed", &
+      CONTEXT)) return
+!   fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
+    fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_data(tlb(1):tub(1),tlb(2):tub(2))
 
-  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=2, &
-       staggerLoc=ESMF_STAGGERLOC_CENTER, &
-       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 2 failed", CONTEXT)) return
-!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
-  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_data(tlb(1):tub(1),tlb(2):tub(2))
+!   copy in corner coordinate data
+    call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=1, &
+      staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 1 failed", &
+      CONTEXT)) return
+!   fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_e(tlb(1):tub(1),tlb(2):tub(2))
+    fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_corner_data(tlb(1):tub(1), &
+      tlb(2):tub(2))
 
-! Copy in corner coordinate data
-  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=1, &
-       staggerLoc=ESMF_STAGGERLOC_CORNER, &
-       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get coord 1 failed", CONTEXT)) return
-!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_e(tlb(1):tub(1),tlb(2):tub(2))
-  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lon_corner_data(tlb(1):tub(1),tlb(2):tub(2))
+    call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=2, &
+      staggerLoc=ESMF_STAGGERLOC_CORNER, &
+      totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get corner coord 2 failed", &
+      CONTEXT)) return
+!   fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
+    fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_corner_data(tlb(1):tub(1), &
+      tlb(2):tub(2))
 
-  call ESMF_GridGetCoord(gridIn, localDE=localDE, coordDim=2, &
-       staggerLoc=ESMF_STAGGERLOC_CORNER, &
-       totalLBound=tlb, totalUBound=tub, farrayPtr=fptr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get corner coord 2 failed", CONTEXT)) return
-!  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_e(tlb(1):tub(1),tlb(2):tub(2))
-  fptr(tlb(1):tub(1),tlb(2):tub(2)) = lat_corner_data(tlb(1):tub(1),tlb(2):tub(2))
+!   copy in land/sea mask (integer)
+    call ESMF_GridGetItem(gridIn, localDE=localDE, &
+      itemflag=ESMF_GRIDITEM_MASK, staggerLoc=ESMF_STAGGERLOC_CENTER, &
+      totalLBound=tlb, totalUBound=tub, farrayPtr=iptr, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get mask failed", &
+      CONTEXT)) return
+!   iptr(tlb(1):tub(1),tlb(2):tub(2)) = NINT(mask_e(tlb(1):tub(1), &
+!     tlb(2):tub(2)))
+    iptr(tlb(1):tub(1),tlb(2):tub(2)) = NINT(mask_data(tlb(1):tub(1), &
+      tlb(2):tub(2)))
 
-! Copy in land/sea mask (integer)
-  call ESMF_GridGetItem(gridIn, localDE=localDE, itemflag=ESMF_GRIDITEM_MASK, &
-       staggerLoc=ESMF_STAGGERLOC_CENTER, &
-       totalLBound=tlb, totalUBound=tub, farrayPtr=iptr, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="grid get mask failed", CONTEXT)) return
-!  iptr(tlb(1):tub(1),tlb(2):tub(2)) = NINT(mask_e(tlb(1):tub(1),tlb(2):tub(2)))
-  iptr(tlb(1):tub(1),tlb(2):tub(2)) = NINT(mask_data(tlb(1):tub(1),tlb(2):tub(2)))
-
-  call ESMF_FieldDestroy(lon_field,rc=rc)
-  call ESMF_FieldDestroy(lat_field,rc=rc)
-  call ESMF_FieldDestroy(lon_corner_field,rc=rc)
-  call ESMF_FieldDestroy(lat_corner_field,rc=rc)
-  call ESMF_FieldDestroy(mask_field,rc=rc)
+    call ESMF_FieldDestroy(lon_field, rc=rc)
+    call ESMF_FieldDestroy(lat_field, rc=rc)
+    call ESMF_FieldDestroy(lon_corner_field, rc=rc)
+    call ESMF_FieldDestroy(lat_corner_field, rc=rc)
+    call ESMF_FieldDestroy(mask_field, rc=rc)
 #endif
 
     gridOut = gridIn ! for now out same as in
 
-    ! Log grid and decomp to PET logs
+    ! log grid and decomp to PET logs
     if (btest(verbosity,16)) then
-      call HYCOM_ESMF_LogGrid(gridOut, &
-        trim(cname)//"_"//rname,rc=rc)
+      call HYCOM_ESMF_LogGrid(gridOut, trim(cname)//"_"//rname,rc=rc)
       if (ESMF_STDERRORCHECK(rc)) return  ! bail out
     endif
 
-    ! Write grid to NetCDF file.
+    ! write grid to NetCDF file.
     if (btest(diagnostic,16)) then
       call HYCOM_ESMF_GridWrite(gridOut, "diagnostic_"//trim(cname)//"_"// &
         rname//"_grid.nc", rc=rc)
@@ -1040,58 +1071,61 @@ end subroutine InitializeP1
 
 #ifdef ESPC_COUPLE
     do i=1,numImpFields
-
       if (impFieldEnable(i)) then
         isConnected = NUOPC_IsConnected(importState, &
           fieldName=impFieldName(i),rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
         if (isConnected) then
-          if (lPet.eq.0) print *,"hycom, import field created, name=",impFieldName(i)
+          if (lPet.eq.0) print *,"hycom, import field created, name=", &
+            impFieldName(i)
 
           impField(i) = ESMF_FieldCreate(name=impFieldName(i), grid=gridIn, &
-          typekind=ESMF_TYPEKIND_RX, rc=rc)
+            typekind=ESMF_TYPEKIND_RX, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
 
           call NUOPC_Realize(importState, field=impField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         else
-          if (lPet.eq.0) print *,"hycom, import field disabled, name=",impFieldName(i)
+          if (lPet.eq.0) print *,"hycom, import field disabled, name=", &
+            impFieldName(i)
 
           impFieldEnable(i) = .false.
-          call ESMF_StateRemove(importState,(/impFieldName(i)/), relaxedflag=.true.,rc=rc)
+          call ESMF_StateRemove(importState, (/impFieldName(i)/), &
+            relaxedflag=.true., rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         endif
-
       endif
     enddo
 
     do i=1,numExpFields
-
       if (expFieldEnable(i)) then
         isConnected = NUOPC_IsConnected(exportState, &
-          fieldName=expFieldName(i),rc=rc)
+          fieldName=expFieldName(i), rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
 
         if (isConnected) then
-          if (lPet.eq.0) print *,"hycom, export field created, name=",expFieldName(i)
+          if (lPet.eq.0) print *,"hycom, export field created, name=", &
+            expFieldName(i)
 
-        ! exportable field:
+!         exportable field:
           expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
-          typekind=ESMF_TYPEKIND_RX, rc=rc)
+            typekind=ESMF_TYPEKIND_RX, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
 
           call NUOPC_Realize(exportState, field=expField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
-          if (lPet.eq.0) print *,"hycom, export field done creating, name=",expFieldName(i)
+          if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
+            expFieldName(i)
         else
-          if (lPet.eq.0) print *,"hycom, export field disabled, name=",expFieldName(i)
+          if (lPet.eq.0) print *,"hycom, export field disabled, name=", &
+            expFieldName(i)
 
           expFieldEnable(i) = .false.
-          call ESMF_StateRemove(exportState,(/expFieldName(i)/),relaxedflag=.true.,rc=rc)
+          call ESMF_StateRemove(exportState,(/expFieldName(i)/), &
+            relaxedflag=.true., rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         endif
-
       endif
     enddo
 
@@ -1104,13 +1138,11 @@ end subroutine InitializeP1
 
     endtime=0
     if (ocn_esmf_exp_output.and.(mod(endtime,float(cdf_impexp_freq)).eq.0)) then
-
-      call impexp_cdf_put_flds('hycom', base_dtg, endtime, &
-        itdmx,jtdmx, &
-        numExpFields,expFieldEnable,expFieldName,expStandName,expFieldUnit,expField, &
-        status,lPet,rc,'exp')
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", CONTEXT)) return
-
+      call impexp_cdf_put_flds('hycom', base_dtg, endtime, itdmx,jtdmx, &
+        numExpFields,expFieldEnable,expFieldName,expStandName,expFieldUnit, &
+        expField,status,lPet,rc,'exp')
+      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", &
+        CONTEXT)) return
     endif
 
     deallocate(tmp_e)
@@ -1128,52 +1160,51 @@ end subroutine InitializeP1
     if (ESMF_STDERRORCHECK(rc)) return
 
     espc_timer(1)=espc_timer(1)+timer_end-timer_beg
-!    if (lPet.eq.0) print *,"hycom, InitializeP2,timer=",espc_timer(1),timer_end-timer_beg
+!   if (lPet.eq.0) print *,"hycom, InitializeP2,timer=",espc_timer(1), &
+!     timer_end-timer_beg
     call print_timer_stat('hycom, Init2:',timer_end-timer_beg,lPet,nPets,vm,rc)
 #endif
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 end called..."
 
-end subroutine InitializeP2
+  end subroutine InitializeP2
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "ModelAdvance"
-subroutine ModelAdvance(model, rc)
+  subroutine ModelAdvance(model, rc)
 !   arguments
     type(ESMF_GridComp)  :: model
     integer, intent(out) :: rc
 !   local variables
-    type(ESMF_Clock)              :: clock
-    type(ESMF_State)              :: importState, exportState
-    integer i,status
-!!!!
-  type(ESMF_Time) :: extCurrTime
-  type(ESMF_Time) :: extRefTime
-  type(ESMF_TimeInterval) :: extTimeStep
-  character(ESMF_MAXSTR)  :: currtimeString, reftimeString
-  type(ESMF_TimeInterval) :: extTimeSinceStart
-  real(kind=ESMF_KIND_R8) :: extSecSinceStarti
-  real(kind=ESMF_KIND_R8) :: extSecTimeStep
-  real   :: begtime
-  real*8 :: endtime8
-  real   :: endtimex
+    character(32)           :: cname
+    character(*), parameter :: rname="ModelAdvance"
+    type(ESMF_Clock)        :: clock
+    type(ESMF_State)        :: importState, exportState
+    integer                 :: i, status
+    type(ESMF_Time)         :: extCurrTime
+    type(ESMF_Time)         :: extRefTime
+    type(ESMF_TimeInterval) :: extTimeStep
+    character(ESMF_MAXSTR)  :: currtimeString, reftimeString
+    type(ESMF_TimeInterval) :: extTimeSinceStart
+    real(kind=ESMF_KIND_R8) :: extSecSinceStarti
+    real(kind=ESMF_KIND_R8) :: extSecTimeStep
+    real                    :: begtime
+    real*8                  :: endtime8
+    real                    :: endtimex
 #ifdef ESPC_TIMER
-  real(kind=ESMF_KIND_R8) :: timer_tmp_beg,timer_tmp_end
+    real(kind=ESMF_KIND_R8) :: timer_tmp_beg, timer_tmp_end
 #endif
 
     rc = ESMF_SUCCESS
 
-  if (lPet.eq.0) print *,"hycom, ModelAdvance called"
-!  return
+    if (lPet.eq.0) print *,"hycom, ModelAdvance called"
 
 #ifdef ESPC_TIMER
-  call ESMF_VMBarrier(vm, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMBarrier(vm, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_VMWtime(timer_beg, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMWtime(timer_beg, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
     ! query the Component for its clock, importState and exportState
@@ -1181,48 +1212,50 @@ subroutine ModelAdvance(model, rc)
       exportState=exportState, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-!!!!!!
-! Compute the step count from the external clock
-  call ESMF_ClockGet(clock, currTime=extCurrTime, refTime=extRefTime, &
+!   compute the step count from the external clock
+    call ESMF_ClockGet(clock, currTime=extCurrTime, refTime=extRefTime, &
       timeStep=extTimeStep,rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="Get extCurrTime failed", CONTEXT)) return
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="Get extCurrTime failed", &
+      CONTEXT)) return
 
-  call ESMF_TimeGet(extCurrTime,timeString=currtimeString)
-  call ESMF_TimeGet(extRefTime,timeString=reftimeString)
+    call ESMF_TimeGet(extCurrTime,timeString=currtimeString)
+    call ESMF_TimeGet(extRefTime,timeString=reftimeString)
 
-!  if (lPet.eq.0) print *,"hycom,extCurrTime, extRefTime=",currtimeString,reftimeString
+!   if (lPet.eq.0) print *,"hycom,extCurrTime, extRefTime=",currtimeString, &
+!     reftimeString
 
-! Elapsed time in seconds for internal clock
-  extTimeSinceStart = extCurrTime - extRefTime
-  call ESMF_TimeIntervalGet(extTimeSinceStart, s_r8=extSecSinceStarti, rc=rc)
-  call ESMF_TimeIntervalGet(extTimeStep, s_r8=extSecTimeStep, rc=rc)
-  if (ESMF_LogFoundError(rcToCheck=rc, msg="Get time interval failed", CONTEXT)) return
+!   elapsed time in seconds for internal clock
+    extTimeSinceStart = extCurrTime - extRefTime
+    call ESMF_TimeIntervalGet(extTimeSinceStart, s_r8=extSecSinceStarti, rc=rc)
+    call ESMF_TimeIntervalGet(extTimeStep, s_r8=extSecTimeStep, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="Get time interval failed", &
+      CONTEXT)) return
 
-  if (lPet.eq.0) print *,"hycom,extSecTimeStep=",extSecTimeStep
+    if (lPet.eq.0) print *,"hycom,extSecTimeStep=",extSecTimeStep
 
-  begtime=extSecSinceStarti/3600.
-  endtime=(extSecSinceStarti+extSecTimeStep)/3600.
+    begtime=extSecSinceStarti/3600.
+    endtime=(extSecSinceStarti+extSecTimeStep)/3600.
 
-  if (lPet.eq.0) print *,"hycom,begtime,endtime=",begtime,endtime
+    if (lPet.eq.0) print *,"hycom,begtime,endtime=",begtime,endtime
 
-  endtime=endtime+ocean_start_dtg*24
+    endtime=endtime+ocean_start_dtg*24
 
-! Run atmos forward
+!   run atmos forward
 
-  if (lPet.eq.0) print *,"HYCOM_OceanCom, ModelAdvance, Run ocean forward...,endtime=",endtime/24
+    if (lPet.eq.0) print *,"HYCOM_OceanCom, ModelAdvance,"// &
+      " Run ocean forward...,endtime=",endtime/24
 
 #ifdef ESPC_COUPLE
     endtimex=endtime-ocean_start_dtg*24
 
-    if (ocn_esmf_imp_output.and.( (mod(endtimex,float(cdf_impexp_freq)).eq.0 .or. &
-      endtimex.eq.0.5)  )) then
+    if (ocn_esmf_imp_output.and.((mod(endtimex,float(cdf_impexp_freq)).eq.0 &
+      .or. endtimex.eq.0.5))) then
 
       call impexp_cdf_put_flds('hycom', base_dtg, endtimex-cpl_time_step, &
-        itdmx,jtdmx, &
-        numImpFields,impFieldEnable,impFieldName,impStandName,impFieldUnit,impField,status, &
-        lPet,rc,'imp')
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", CONTEXT)) return
-
+        itdmx,jtdmx,numImpFields,impFieldEnable,impFieldName,impStandName, &
+        impFieldUnit,impField,status,lPet,rc,'imp')
+      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", &
+        CONTEXT)) return
     endif
 
 #ifdef ESPC_TIMER
@@ -1248,10 +1281,11 @@ subroutine ModelAdvance(model, rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     espc_timer(4)=espc_timer(4)+timer_tmp_end-timer_tmp_beg
-    call print_timer_stat('hycom, Run(Import):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
+    call print_timer_stat('hycom, Run(Import):',timer_tmp_end-timer_tmp_beg, &
+      lPet,nPets,vm,rc)
 #endif
 
-!    call redef_radflx()
+!   call redef_radflx()
 
 !ajw
 !move to mod_hycom.F
@@ -1290,13 +1324,12 @@ subroutine ModelAdvance(model, rc)
     if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
-  do !until end of run
-    call HYCOM_Run(endtime8/24)
-    if     (end_of_run .or. end_of_run_cpl ) then
-      exit
-    endif
-
-  enddo
+    do !until end of run
+      call HYCOM_Run(endtime8/24)
+      if (end_of_run .or. end_of_run_cpl ) then
+        exit
+      endif
+    enddo
 
 #ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
@@ -1306,7 +1339,8 @@ subroutine ModelAdvance(model, rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     espc_timer(5)=espc_timer(5)+timer_tmp_end-timer_tmp_beg
-    call print_timer_stat('hycom, Run(Core):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
+    call print_timer_stat('hycom, Run(Core):',timer_tmp_end-timer_tmp_beg, &
+      lPet,nPets,vm,rc)
 #endif
 
 #ifdef ESPC_COUPLE
@@ -1322,7 +1356,6 @@ subroutine ModelAdvance(model, rc)
       if (expFieldEnable(i)) then
         call do_export(i,expField(i),rc)
         if (ESMF_STDERRORCHECK(rc)) return
-
       endif
     enddo
 
@@ -1334,76 +1367,75 @@ subroutine ModelAdvance(model, rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     espc_timer(6)=espc_timer(6)+timer_tmp_end-timer_tmp_beg
-    call print_timer_stat('hycom, Run(Export):',timer_tmp_end-timer_tmp_beg,lPet,nPets,vm,rc)
+    call print_timer_stat('hycom, Run(Export):',timer_tmp_end-timer_tmp_beg, &
+      lPet,nPets,vm,rc)
 #endif
 
 !move to mod_hycom.F
 #ifdef ESPC_COUPLE
-    if (hycom_arche_output) call archiv_exchange  !arche file of fields exchanged with ice component
+    if (hycom_arche_output) call archiv_exchange ! arch fields exchanged w ice
 #endif
 
-    if (ocn_esmf_exp_output.and.( (mod(endtimex,float(cdf_impexp_freq)).eq.0 .or. &
-      endtimex.eq.0.5)  )) then
-
+    if (ocn_esmf_exp_output.and.( (mod(endtimex,float(cdf_impexp_freq)).eq.0 &
+      .or. endtimex.eq.0.5)  )) then
       call impexp_cdf_put_flds('hycom', base_dtg,endtimex, &
-        itdmx,jtdmx, &
-        numExpFields,expFieldEnable,expFieldName,expStandName,expFieldUnit,expField, &
-        status,lPet,rc,'exp')
-      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", CONTEXT)) return
-
+        itdmx,jtdmx,numExpFields,expFieldEnable,expFieldName,expStandName, &
+        expFieldUnit,expField,status,lPet,rc,'exp')
+      if (ESMF_LogFoundError(rcToCheck=rc, msg="impexp_cdf_put_flds failed", &
+        CONTEXT)) return
     endif
 #endif
 
 #ifdef ESPC_TIMER
-  call ESMF_VMBarrier(vm, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMBarrier(vm, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_VMWtime(timer_end, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMWtime(timer_end, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  espc_timer(2)=espc_timer(2)+timer_end-timer_beg
-!  if (lPet.eq.0) print *,"hycom, ModelAdvance,timer=",espc_timer(2), &
+    espc_timer(2)=espc_timer(2)+timer_end-timer_beg
+!   if (lPet.eq.0) print *,"hycom, ModelAdvance,timer=",espc_timer(2), &
 !     timer_end-timer_beg
-  call print_timer_stat('hycom, Run:',timer_end-timer_beg,lPet,nPets,vm,rc)
+    call print_timer_stat('hycom, Run:',timer_end-timer_beg,lPet,nPets,vm,rc)
 #endif
 
-  if (lPet.eq.0) print *,"hycom, ModelAdvance end..."
-  if (lPet.eq.0) print *,"hycom, ModelAdvance end...",begtime,endtime
-end subroutine ModelAdvance
+    if (lPet.eq.0) print *,"hycom, ModelAdvance end..."
+    if (lPet.eq.0) print *,"hycom, ModelAdvance end...",begtime,endtime
+  end subroutine ModelAdvance
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "OCEAN_Final"
-subroutine OCEAN_Final(model, rc)
-! arguments
-  type(ESMF_GridComp) :: model
-  integer,INTENT(OUT) :: rc
-! local variables
-  integer :: lrc, i
+  subroutine OCEAN_Final(model, rc)
+!   arguments
+    type(ESMF_GridComp)  :: model
+    integer, intent(out) :: rc
+!   local variables
+    character(32)                   :: cname
+    character(*), parameter         :: rname="OCEAN_Final"
+    integer                         :: lrc, i
 #ifdef ESPC_TIMER
-  integer j,ij
-  real(kind=ESMF_KIND_R8), allocatable:: espc_all_timer(:)
-  real, allocatable:: all_timer(:,:)
-  real timer_min(6),timer_max(6),timer_mean(6),timer_stdev(6)
+    integer                         :: j, ij
+    real(ESMF_KIND_R8), allocatable :: espc_all_timer(:)
+    real, allocatable               :: all_timer(:,:)
+    real                            :: timer_min(6), timer_max(6)
+    real                            :: timer_mean(6), timer_stdev(6)
 #endif
 
-  rc = ESMF_FAILURE
+    rc = ESMF_FAILURE
 
-! Report
-  call ESMF_LogWrite("HYCOM finalize routine called", ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite("HYCOM finalize routine called", ESMF_LOGMSG_INFO)
 
 #ifdef ESPC_TIMER
-  call ESMF_VMBarrier(vm, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMBarrier(vm, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_VMWtime(timer_beg, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMWtime(timer_beg, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
-! Finalize ocean
-   if (lPet.eq.0) print *,"HYCOM Final called.."
-   call HYCOM_Final
+!   finalize ocean
+    if (lPet.eq.0) print *,"HYCOM Final called.."
+    call HYCOM_Final
 
 #ifdef ESPC_COUPLE
     if (associated(expFieldName)) deallocate(expFieldName)
@@ -1424,47 +1456,56 @@ subroutine OCEAN_Final(model, rc)
 #endif
 
 #ifdef ESPC_TIMER
-  call ESMF_VMBarrier(vm, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMBarrier(vm, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  call ESMF_VMWtime(timer_end, rc=rc)
-  if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_VMWtime(timer_end, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
 
-  espc_timer(3)=timer_end-timer_beg
+    espc_timer(3)=timer_end-timer_beg
 
-!  if (lPet.eq.0) print *,"hycom, Final,timer=",espc_timer(3)
-  call print_timer_stat('hycom, Final:',timer_end-timer_beg,lPet,nPets,vm,rc)
+!   if (lPet.eq.0) print *,"hycom, Final,timer=",espc_timer(3)
+    call print_timer_stat('hycom, Final:',timer_end-timer_beg,lPet,nPets,vm,rc)
 
-  call print_timer_stat('       HYCOM_Init Phase:',espc_timer(1),lPet,nPets,vm,rc)
-  call print_timer_stat('        HYCOM_Run Phase:',espc_timer(2),lPet,nPets,vm,rc)
-  call print_timer_stat('      HYCOM_Final Phase:',espc_timer(3),lPet,nPets,vm,rc)
-  call print_timer_stat('HYCOM_Run Phase(Import):',espc_timer(4),lPet,nPets,vm,rc)
-  call print_timer_stat('  HYCOM_Run Phase(Core):',espc_timer(5),lPet,nPets,vm,rc)
-  call print_timer_stat('HYCOM_Run Phase(Export):',espc_timer(6),lPet,nPets,vm,rc)
+    call print_timer_stat('       HYCOM_Init Phase:',espc_timer(1),lPet, &
+      nPets,vm,rc)
+    call print_timer_stat('        HYCOM_Run Phase:',espc_timer(2),lPet, &
+      nPets,vm,rc)
+    call print_timer_stat('      HYCOM_Final Phase:',espc_timer(3),lPet, &
+      nPets,vm,rc)
+    call print_timer_stat('HYCOM_Run Phase(Import):',espc_timer(4),lPet, &
+      nPets,vm,rc)
+    call print_timer_stat('  HYCOM_Run Phase(Core):',espc_timer(5),lPet, &
+      nPets,vm,rc)
+    call print_timer_stat('HYCOM_Run Phase(Export):',espc_timer(6),lPet, &
+      nPets,vm,rc)
 #endif
 
-  if (lPet.eq.0) print *,"hycom, OCEAN_Final end..."
+    if (lPet.eq.0) print *,"hycom, OCEAN_Final end..."
 
-  rc = ESMF_SUCCESS
+    rc = ESMF_SUCCESS
 
-end subroutine OCEAN_Final
+  end subroutine OCEAN_Final
 
   !-----------------------------------------------------------------------------
 
 #ifdef ESPC_COUPLE
-#undef METHOD
-#define METHOD "do_export"
-subroutine do_export(k,field,rc)
+  subroutine do_export(k,field,rc)
 !   arguments
+    integer, intent(in)             :: k
+    type(ESMF_Field), intent(inout) :: field
+    integer, intent(out)            :: rc
 !   local variables
-    integer k,i,j
-    type(ESMF_Field)        :: field
-    real*8, allocatable, dimension(:,:) :: expData
-    real(ESMF_KIND_RX), dimension(:,:), pointer :: field_data
-    integer tlb(2),tub(2)
-    integer :: rc
-    character(len=30) fieldName
-    integer status
+    character(32)               :: cname
+    character(*), parameter     :: rname="do_export"
+    integer                     :: i, j
+    real*8, allocatable         :: expData(:,:)
+    real(ESMF_KIND_RX), pointer :: field_data(:,:)
+    integer                     :: tlb(2), tub(2)
+    character(len=30)           :: fieldName
+    integer                     :: status
+
+    rc = ESMF_FAILURE
 
     fieldName=expFieldName(k)
 
@@ -1491,33 +1532,35 @@ subroutine do_export(k,field,rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
 
-    do j   = tlb(2),tub(2)
-    do i   = tlb(1),tub(1)
-        field_data(i,j)=expData(i,j)
+    do j = tlb(2),tub(2)
+    do i = tlb(1),tub(1)
+      field_data(i,j)=expData(i,j)
     enddo
     enddo
 
     if (allocated(expData)) deallocate(expData)
 
-   rc = ESMF_SUCCESS
+     rc = ESMF_SUCCESS
 
-end subroutine do_export
+  end subroutine do_export
 
   !-----------------------------------------------------------------------------
 
-#undef METHOD
-#define METHOD "do_import"
-subroutine do_import(k,field,data_init_flag,rc)
+  subroutine do_import(k,field,data_init_flag,rc)
 !   arguments
+    integer, intent(in)          :: k
+    type(ESMF_Field), intent(in) :: field
+    logical,intent(in)           :: data_init_flag
+    integer,intent(out)          :: rc
 !   local variables
-    integer k,i,j
-    type(ESMF_Field)        :: field
-    real*8, allocatable, dimension(:,:) :: impData
-    real(ESMF_KIND_RX), dimension(:,:), pointer :: field_data
-    integer tlb(2),tub(2)
-    integer :: rc,status
-    character(len=30) fieldName
-    logical data_init_flag
+    character(32)               :: cname
+    character(*), parameter     :: rname="do_import"
+    integer                     :: i, j
+    real*8, allocatable         :: impData(:,:)
+    real(ESMF_KIND_RX), pointer :: field_data(:,:)
+    integer                     :: tlb(2), tub(2)
+    integer                     :: status
+    character(len=30)           :: fieldName
 
     fieldName=impFieldName(k)
 
@@ -1536,21 +1579,22 @@ subroutine do_import(k,field,data_init_flag,rc)
 
     impData(:,:)=0.
 
-    do j   = tlb(2),tub(2)
-    do i   = tlb(1),tub(1)
-        impData(i,j)=field_data(i,j)
+    do j = tlb(2),tub(2)
+    do i = tlb(1),tub(1)
+      impData(i,j)=field_data(i,j)
     enddo
     enddo
 
-    call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax,data_init_flag,rc=rc)
+    call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax, &
+      data_init_flag,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
 
     if (allocated(impData)) deallocate(impData)
 
-   rc = ESMF_SUCCESS
+    rc = ESMF_SUCCESS
 
-end subroutine do_import
+  end subroutine do_import
 #endif
 
 !===============================================================================
