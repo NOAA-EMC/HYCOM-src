@@ -45,6 +45,7 @@ module hycom_couple
 !===============================================================================
   public :: hycom_couple_init
   public :: set_hycom_import_flag
+  public :: hycom_couple_check_deb
   public :: export_from_hycom_deb
   public :: import_to_hycom_deb
   public :: ocn_import_forcing
@@ -316,6 +317,44 @@ module hycom_couple
 
   !-----------------------------------------------------------------------------
 
+  subroutine hycom_couple_check_deb(show_minmax, rc)
+!   arguments
+    logical, intent(in)  :: show_minmax
+    integer, intent(out) :: rc
+!   local variables
+    character(*), parameter :: rname="hycom_couple_check_deb"
+    real, allocatable       :: data_tmp(:,:)
+
+    rc = 0 ! success
+
+    if (mnproc.eq.1) print *, rname//" start..."
+
+!   diagnostic output
+    if (show_minmax) then
+!     allocate memory
+      if (mnproc.eq.1) then
+        allocate(data_tmp(itdm,jtdm))
+      else
+        allocate(data_tmp(1,1))
+      endif
+
+!     check pang - angle between xwards and ewards
+      call xcaget(data_tmp, pang, 1)
+      if (mnproc.eq.1) then
+        print *,rname//' pang, min,max=', &
+          minval(data_tmp), maxval(data_tmp)
+      endif
+
+!     deallocate memory
+      if (allocated(data_tmp)) deallocate(data_tmp)
+    endif !show_minmax
+
+    if (mnproc.eq.1) print *, rname//" end..."
+
+  end subroutine hycom_couple_check_deb
+
+  !-----------------------------------------------------------------------------
+
   subroutine export_from_hycom_deb(tlb, tub, expData, fieldName, show_minmax, &
     rc)
 !   arguments
@@ -415,13 +454,6 @@ module hycom_couple
  992    format('export_from_hycom_deb,max,min,mean=',A10,3E23.15)
       endif
 
-!     test check pang
-      call xcaget(ocn_msk, pang, 1)
-      if (mnproc.eq.1) then
-        print *,'export_from_hycom pang, min,max=', &
-          minval(ocn_msk), maxval(ocn_msk)
-      endif
-
 !     deallocate memory
       if (allocated(ocn_msk)) deallocate(ocn_msk)
       if (allocated(field_tmp)) deallocate(field_tmp)
@@ -453,7 +485,7 @@ module hycom_couple
     real, parameter         :: sstmin=-1.8d0
     real, parameter         :: sstmax=35.0d0
     integer                 :: jja
-    real                    :: albw,degtorad
+    real                    :: albw, degtorad
     integer                 :: ierr
 !   integer                 :: k
 
@@ -502,9 +534,9 @@ module hycom_couple
         else
           tauy(i,j,l0)=0.0
         endif
+!       rotate taux and tauy to (x,y)ward
         uij=taux(i,j,l0)
         vij=tauy(i,j,l0)
-!       rotate to (x,y)ward
         taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
         tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
@@ -541,9 +573,9 @@ module hycom_couple
         else
           wndspy(i,j,l0)=0.0
         endif
+!       rotate u and v to (x,y)ward
         uij=wndspx(i,j,l0)
         vij=wndspy(i,j,l0)
-!       rotate to (x,y)ward
         wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
         wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
@@ -603,20 +635,28 @@ module hycom_couple
 !   -----------------
 !   import specific humidity: kg kg-1
     elseif (fieldName.eq.'airhum') then
-      do j=1, jja
-      do i=1, ii
-        if (ishlf(i,j).eq.1) then
-          if (flxflg.ne.5) then !Alex flxflg.eq.4 => mixing ratio
+      if (flxflg.ne.5) then !Alex flxflg.eq.4 => mixing ratio
+        do j=1, jja
+        do i=1, ii
+          if (ishlf(i,j).eq.1) then
 !           convert from specific humidity to mixing ratio
             vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
-          else !Alex flxflg.eq.5 => specific humidity
-            vapmix(i,j,l0)=impData(i+i0,j+j0)
+          else
+            vapmix(i,j,l0)=0.01
           endif
-        else
-          vapmix(i,j,l0)=0.01
-        endif
-      enddo
-      enddo
+        enddo
+        enddo
+      else !Alex flxflg.eq.5 => specific humidity
+        do j=1, jja
+        do i=1, ii
+          if (ishlf(i,j).eq.1) then
+            vapmix(i,j,l0)=impData(i+i0,j+j0)
+          else
+            vapmix(i,j,l0)=0.01
+          endif
+        enddo
+        enddo
+      endif
 #if defined(ARCTIC)
       call xctila(vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
@@ -639,15 +679,6 @@ module hycom_couple
 !   import downward sw flux: w m-2
     elseif ((fieldName.eq.'swflx_net2down').or. &
             (fieldName.eq.'swflxd')) then
-      do j=1, jja
-      do i=1, ii
-        if (ishlf(i,j).eq.1) then
-          swflx(i,j,l0)=impData(i+i0,j+j0)
-        else
-          swflx(i,j,l0)=0.0
-        endif
-      enddo
-      enddo
       if (albflg.ne.0) then !swflx is Qswdn
 !       use the same method as on forfun.F
 !       convert swflx to net shortwave into the ocean
@@ -655,28 +686,38 @@ module hycom_couple
         if (albflg.eq.1) then
           do j=1, jja
           do i=1, ii
-!           if (ishlf(i,j).eq.1) then
-              swflx(i,j,l0)=swflx(i,j,l0)*(1.0-0.09) !NAVGEM albedo
-!           else
-!             swflx(i,j,l0)=0.0
-!           endif
+            if (ishlf(i,j).eq.1) then
+              swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-0.09) !NAVGEM albedo
+            else
+              swflx(i,j,l0)=0.0
+            endif
           enddo
           enddo
         else !albflg.eq.2
           degtorad=4.d0*atan(1.d0)/180.d0
           do j=1, jja
           do i=1, ii
-!           latitudinally-varying ocean albedo (Large and Yeager, 2009)
-!           5.8% at the equator and 8% at the poles
-            albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
-!           if (ishlf(i,j).eq.1) then
-              swflx(i,j,l0)=swflx(i,j,l0)*(1.0-albw)
-!           else
-!             swflx(i,j,l0)=0.0
-!           endif
+            if (ishlf(i,j).eq.1) then
+!             latitudinally-varying ocean albedo (Large and Yeager, 2009)
+!             5.8% at the equator and 8% at the poles
+              albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
+              swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-albw)
+            else
+              swflx(i,j,l0)=0.0
+            endif
           enddo
           enddo
-        endif !albflg
+        endif
+      else !albflg.eq.0
+        do j=1, jja
+        do i=1, ii
+          if (ishlf(i,j).eq.1) then
+            swflx(i,j,l0)=impData(i+i0,j+j0)
+          else
+            swflx(i,j,l0)=0.0
+          endif
+        enddo
+        enddo
       endif
 #if defined(ARCTIC)
       call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
@@ -945,9 +986,9 @@ module hycom_couple
         else
           siv_import(i,j)=0.0
         endif
+!       rotate siu and siv to (x,y)ward
         uij=siu_import(i,j)
         vij=siv_import(i,j)
-!       rotate to (x,y)ward
         siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
         siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo

@@ -67,6 +67,7 @@ module HYCOM_Mod
   use hycom_couple, only: cpldom, &
                           hycom_couple_init, &
                           set_hycom_import_flag, &
+                          hycom_couple_check_deb, &
                           export_from_hycom_deb, &
                           import_to_hycom_deb, &
                           ocn_import_forcing, &
@@ -778,6 +779,10 @@ module HYCOM_Mod
 
     call hycom_couple_init(nPets,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", &
+      CONTEXT)) return
+
+    call hycom_couple_check_deb(show_minmax, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_check_deb failed", &
       CONTEXT)) return
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called 2,idim_size,jdim_size", &
