@@ -118,6 +118,7 @@ module HYCOM_Mod
   real              :: endtime
   integer           :: itdmx, jtdmx
   logical           :: show_minmax
+  logical           :: merge_import
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
@@ -128,6 +129,7 @@ module HYCOM_Mod
 ! espc_timer(5): Run Phase Core
 ! espc_timer(6): Run Phase export
 #endif
+  real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20
 
 !===============================================================================
   contains
@@ -423,8 +425,15 @@ module HYCOM_Mod
         name="espc_show_impexp_minmax", defaultvalue=".true.", &
         convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="attribute get hyc_impexp_file failed", CONTEXT)) return
+        msg="attribute get espc_show_impexp_minmax failed", CONTEXT)) return
       show_minmax = (trim(value)==".true.")
+
+      call ESMF_AttributeGet(model, value=value, &
+        name="merge_import", defaultvalue=".true.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get merge_import failed", CONTEXT)) return
+      merge_import = (trim(value)==".true.")
 
 !     start Time
       call ESMF_AttributeGet(model, value=value, &
@@ -517,6 +526,9 @@ module HYCOM_Mod
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
           'Show MinMax            = ',show_minmax
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'Merge Import           = ',merge_import
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,F0.1))") trim(cname)//': ', &
           'Start DTG Since Epoch  = ',ocean_start_dtg
@@ -1089,6 +1101,10 @@ module HYCOM_Mod
             typekind=ESMF_TYPEKIND_RX, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
 
+          call ESMF_FieldFill(impField(i), dataFillScheme="const", &
+            const1=fillValue, rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+
           call NUOPC_Realize(importState, field=impField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         else
@@ -1183,6 +1199,8 @@ module HYCOM_Mod
 !   local variables
     character(32)           :: cname
     character(*), parameter :: rname="ModelAdvance"
+    integer                 :: verbosity, diagnostic
+    character(len=64)       :: value
     type(ESMF_Clock)        :: clock
     type(ESMF_State)        :: importState, exportState
     integer                 :: i, status
@@ -1203,6 +1221,26 @@ module HYCOM_Mod
     rc = ESMF_SUCCESS
 
     if (lPet.eq.0) print *,"hycom, ModelAdvance called"
+
+    ! Query component for name, verbosity, and diagnostic values
+!    call NUOPC_CompGet(model, name=name, verbosity=verbosity, &
+!      diagnostic=diagnostic, rc=rc)
+    call ESMF_GridCompGet(model, name=cname, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    call ESMF_AttributeGet(model, name="Diagnostic", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    diagnostic = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","bit16","maxplus"/), &
+      specialValueList=(/0,65535,65536,131071/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    call ESMF_AttributeGet(model, name="Verbosity", value=value, &
+      defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
+    verbosity = ESMF_UtilString2Int(value, &
+      specialStringList=(/"min","max","bit16","maxplus"/), &
+      specialValueList=(/0,65535,65536,131071/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return  ! bail out
 
 #ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
@@ -1273,7 +1311,7 @@ module HYCOM_Mod
 
     do i=1,numImpFields
       if (impFieldEnable(i)) then
-        call do_import(i,impField(i),.false.,rc)
+        call do_import(i,impField(i),.false.,currtimeString,diagnostic,rc=rc)
         if (ESMF_STDERRORCHECK(rc)) return
       endif
     enddo
@@ -1551,21 +1589,26 @@ module HYCOM_Mod
 
   !-----------------------------------------------------------------------------
 
-  subroutine do_import(k,field,data_init_flag,rc)
+  subroutine do_import(k,field,data_init_flag,currtimeString,diagnostic,rc)
 !   arguments
     integer, intent(in)          :: k
     type(ESMF_Field), intent(in) :: field
     logical,intent(in)           :: data_init_flag
+    character(*),intent(in)      :: currtimeString
+    integer,intent(in)           :: diagnostic
     integer,intent(out)          :: rc
 !   local variables
     character(32)               :: cname
     character(*), parameter     :: rname="do_import"
     integer                     :: i, j
     real*8, allocatable         :: impData(:,:)
+    logical, allocatable        :: mergeData(:,:)
     real(ESMF_KIND_RX), pointer :: field_data(:,:)
     integer                     :: tlb(2), tub(2)
     integer                     :: status
     character(len=30)           :: fieldName
+    type(ESMF_Grid)             :: grid
+    type(ESMF_Field)            :: dbgField
 
     fieldName=impFieldName(k)
 
@@ -1580,21 +1623,45 @@ module HYCOM_Mod
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
-    allocate(impData(tlb(1):tub(1),tlb(2):tub(2) ))
-
-    impData(:,:)=0.
-
-    do j = tlb(2),tub(2)
-    do i = tlb(1),tub(1)
-      impData(i,j)=field_data(i,j)
-    enddo
-    enddo
+    allocate(impData(tlb(1):tub(1),tlb(2):tub(2)))
+    allocate(mergeData(tlb(1):tub(1),tlb(2):tub(2)))
+    impData(:,:)=0.0
+    mergeData(:,:)=.false.
+    if (merge_import) then
+      do j = tlb(2),tub(2)
+      do i = tlb(1),tub(1)
+        impData(i,j)=field_data(i,j)
+        mergeData(i,j)=impData(i,j).eq.fillValue
+      enddo
+      enddo
+    else
+      do j = tlb(2),tub(2)
+      do i = tlb(1),tub(1)
+        impData(i,j)=field_data(i,j)
+      enddo
+      enddo
+    endif
 
     call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax, &
-      data_init_flag,rc=rc)
+      data_init_flag, mergeData, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
 
+    ! write post merge import data to NetCDF file.
+    if (btest(diagnostic,16)) then
+      call ESMF_FieldGet(field, grid=grid, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      dbgField = ESMF_FieldCreate(grid=grid, indexflag=ESMF_INDEX_GLOBAL, &
+        farray=impData, name=fieldName, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_FieldWrite(dbgField, fileName='merge_'//trim(fieldName)//'_'// &
+        trim(currtimeString)//'.nc', rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_FieldDestroy(dbgField, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+    endif
+
+    if (allocated(mergeData)) deallocate(mergeData)
     if (allocated(impData)) deallocate(impData)
 
     rc = ESMF_SUCCESS

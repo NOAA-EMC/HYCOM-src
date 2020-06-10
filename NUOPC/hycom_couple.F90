@@ -467,13 +467,14 @@ module hycom_couple
   !-----------------------------------------------------------------------------
 
   subroutine import_to_hycom_deb(tlb, tub, impData, fieldName, show_minmax, &
-    data_init_flag, rc)
+    data_init_flag, mergeData, rc)
 !   arguments
     integer, intent(in)           :: tlb(2), tub(2)
     real, intent(inout)           :: impData(tlb(1):tub(1),tlb(2):tub(2))
     character(len=30), intent(in) :: fieldName
     logical, intent(in)           :: show_minmax
     logical, intent(in)           :: data_init_flag
+    logical, intent(in)           :: mergeData(tlb(1):tub(1),tlb(2):tub(2))
     integer, intent(out)          :: rc
 !   local variables
     character(*), parameter :: rname="import_to_hycom_deb"
@@ -485,7 +486,7 @@ module hycom_couple
     real, parameter         :: sstmin=-1.8d0
     real, parameter         :: sstmax=35.0d0
     integer                 :: jja
-    real                    :: albw, degtorad
+    real                    :: albw,degtorad
     integer                 :: ierr
 !   integer                 :: k
 
@@ -514,7 +515,13 @@ module hycom_couple
       do i=1, ii
 !       taux(i,j,l0)=mgrid(i,j)
         if (ishlf(i,j).eq.1) then
-          taux(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!            wind cannot be rotated
+!            impData(i+i0,j+j0)=taux(i,j,l0)
+             impData(i+i0,j+j0)=0.0
+          else
+            taux(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           taux(i,j,l0)=0.0
         endif
@@ -530,15 +537,22 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          tauy(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!           wind cannot be rotated
+!           impData(i+i0,j+j0)=tauy(i,j,l0)
+            impData(i+i0,j+j0)=0.0
+          else
+            tauy(i,j,l0)=impData(i+i0,j+j0)
+!           rotate taux and tauy to (x,y)ward
+!           assumes rotation only needed for impData
+            uij=taux(i,j,l0)
+            vij=tauy(i,j,l0)
+            taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+            tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+          endif
         else
           tauy(i,j,l0)=0.0
         endif
-!       rotate taux and tauy to (x,y)ward
-        uij=taux(i,j,l0)
-        vij=tauy(i,j,l0)
-        taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-        tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
       enddo
 #if defined(ARCTIC)
@@ -553,7 +567,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          wndspx(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!           wind cannot be rotated
+!           impData(i+i0,j+j0)=wndspx(i,j,l0)
+            impData(i+i0,j+j0)=0.0
+          else
+            wndspx(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           wndspx(i,j,l0)=0.0
         endif
@@ -569,15 +589,22 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          wndspy(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!           wind cannot be rotated
+!           impData(i+i0,j+j0)=wndspy(i,j,l0)
+            impData(i+i0,j+j0)=0.0
+          else
+            wndspy(i,j,l0)=impData(i+i0,j+j0)
+!           rotate u and v to (x,y)ward
+!           assumes rotation only needed for impData
+            uij=wndspx(i,j,l0)
+            vij=wndspy(i,j,l0)
+            wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+            wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+          endif
         else
           wndspy(i,j,l0)=0.0
         endif
-!       rotate u and v to (x,y)ward
-        uij=wndspx(i,j,l0)
-        vij=wndspy(i,j,l0)
-        wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-        wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
       enddo
 #if defined(ARCTIC)
@@ -592,7 +619,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          wndspd(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=wndspd(i,j,l0)
+          else
+            wndspd(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           wndspd(i,j,l0)=0.0
         endif
@@ -607,7 +638,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          ustara(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=ustara(i,j,l0)
+          else
+            ustara(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           ustara(i,j,l0)=0.0
         endif
@@ -622,8 +657,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         canonical unit conversion: airtmp (K) -> (C)
-          airtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          if (mergeData(i+i0,j+j0)) then
+!           canonical unit conversion: airtmp (C) -> (K)
+            impData(i+i0,j+j0)=airtmp(i,j,l0)+273.15
+          else
+!           canonical unit conversion: airtmp (K) -> (C)
+            airtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          endif
         else
           airtmp(i,j,l0)=0.0
         endif
@@ -639,8 +679,13 @@ module hycom_couple
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-!           convert from specific humidity to mixing ratio
-            vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+            if (mergeData(i+i0,j+j0)) then
+!             convert from mixing ratio to specific humidity
+              impData(i+i0,j+j0)=vapmix(i,j,l0)/(1.+vapmix(i,j,l0))
+            else
+!             convert from specific humidity to mixing ratio
+              vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+            endif
           else
             vapmix(i,j,l0)=0.01
           endif
@@ -650,7 +695,11 @@ module hycom_couple
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-            vapmix(i,j,l0)=impData(i+i0,j+j0)
+            if (mergeData(i+i0,j+j0)) then
+              impData(i+i0,j+j0)=vapmix(i,j,l0)
+            else
+              vapmix(i,j,l0)=impData(i+i0,j+j0)
+            endif
           else
             vapmix(i,j,l0)=0.01
           endif
@@ -666,7 +715,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          swflx(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=swflx(i,j,l0)
+          else
+            swflx(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           swflx(i,j,l0)=0.0
         endif
@@ -681,13 +734,17 @@ module hycom_couple
             (fieldName.eq.'swflxd')) then
       if (albflg.ne.0) then !swflx is Qswdn
 !       use the same method as on forfun.F
-!       convert swflx to net shortwave into the ocean
+!       convert to net shortwave into the ocean to swflx
 !       shortwave through sea ice is handled separately
         if (albflg.eq.1) then
           do j=1, jja
           do i=1, ii
             if (ishlf(i,j).eq.1) then
-              swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-0.09) !NAVGEM albedo
+              if (mergeData(i+i0,j+j0)) then
+                impData(i+i0,j+j0)=swflx(i,j,l0)/(1.0-0.09) !NAVGEM albedo
+              else
+                swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-0.09) !NAVGEM albedo
+              endif
             else
               swflx(i,j,l0)=0.0
             endif
@@ -698,27 +755,38 @@ module hycom_couple
           do j=1, jja
           do i=1, ii
             if (ishlf(i,j).eq.1) then
-!             latitudinally-varying ocean albedo (Large and Yeager, 2009)
-!             5.8% at the equator and 8% at the poles
-              albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
-              swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-albw)
+              if (mergeData(i+i0,j+j0)) then
+!               latitudinally-varying ocean albedo (Large and Yeager, 2009)
+!               5.8% at the equator and 8% at the poles
+                albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
+                impData(i+i0,j+j0)=swflx(i,j,l0)/(1.0-albw)
+              else
+!               latitudinally-varying ocean albedo (Large and Yeager, 2009)
+!               5.8% at the equator and 8% at the poles
+                albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
+                swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-albw)
+              endif
             else
               swflx(i,j,l0)=0.0
             endif
           enddo
           enddo
         endif
-      else !albflg.eq.0
+      else
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-            swflx(i,j,l0)=impData(i+i0,j+j0)
+            if (mergeData(i+i0,j+j0)) then
+              impData(i+i0,j+j0)=swflx(i,j,l0)
+            else
+              swflx(i,j,l0)=impData(i+i0,j+j0)
+            endif
           else
             swflx(i,j,l0)=0.0
           endif
         enddo
         enddo
-      endif
+      endif !albflg
 #if defined(ARCTIC)
       call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
@@ -728,8 +796,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         canonical unit conversion: lwflx_net (upward) -> (downward)
-          lwflx(i,j,l0)=impData(i+i0,j+j0)*(-1.)
+          if (mergeData(i+i0,j+j0)) then
+!           canonical unit conversion: lwflx_net (downward) -> (upward)
+            impData(i+i0,j+j0)=lwflx(i,j,l0)/(-1.)
+          else
+!           canonical unit conversion: lwflx_net (upward) -> (downward)
+            lwflx(i,j,l0)=impData(i+i0,j+j0)*(-1.)
+          endif
         else
           lwflx(i,j,l0)=0.0
         endif
@@ -746,7 +819,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          lwflx(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=lwflx(i,j,l0)
+          else
+            lwflx(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           lwflx(i,j,l0)=0.0
         endif
@@ -761,8 +838,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         canonical unit conversion: prcp (kg_m-2_s-1)-> m_s-1
-          precip(i,j,l0)=impData(i+i0,j+j0)*(0.001)
+          if (mergeData(i+i0,j+j0)) then
+!           canonical unit conversion: prcp (m_s-1) -> (kg_m-2_s-1)
+            impData(i+i0,j+j0)=precip(i,j,l0)/(0.001)
+          else
+!           canonical unit conversion: prcp (kg_m-2_s-1) -> (m_s-1)
+            precip(i,j,l0)=impData(i+i0,j+j0)*(0.001)
+          endif
         else
           precip(i,j,l0)=0.0
         endif
@@ -777,8 +859,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         canonical unit conversion: gt (K) -> (C)
-          surtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          if (mergeData(i+i0,j+j0)) then
+!           canonical unit conversion: gt (C) -> (K)
+            impData(i+i0,j+j0)=surtmp(i,j,l0)+273.15
+          else
+!           canonical unit conversion: gt (K) -> (C)
+            surtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          endif
         else
           surtmp(i,j,l0)=0.0
         endif
@@ -803,7 +890,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          mslprs(i,j,l0)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=mslprs(i,j,l0)
+          else
+            mslprs(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
           mslprs(i,j,l0)=1000.0
         endif
@@ -821,7 +912,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sic_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sic_import(i,j)
+          else
+            sic_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sic_import(i,j)=0.0
         endif
@@ -836,7 +931,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sitx_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sitx_import(i,j)
+          else
+            sitx_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sitx_import(i,j)=0.0
         endif
@@ -851,7 +950,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sity_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sity_import(i,j)
+          else
+            sity_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sity_import(i,j)=0.0
         endif
@@ -866,7 +969,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          siqs_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=siqs_import(i,j)
+          else
+            siqs_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           siqs_import(i,j)=0.0
         endif
@@ -881,7 +988,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sifh_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sifh_import(i,j)
+          else
+            sifh_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sifh_import(i,j)=0.0
         endif
@@ -896,7 +1007,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sifs_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sifs_import(i,j)
+          else
+            sifs_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sifs_import(i,j)=0.0
         endif
@@ -911,7 +1026,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sifw_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sifw_import(i,j)
+          else
+            sifw_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sifw_import(i,j)=0.0
         endif
@@ -927,8 +1046,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         canonical unit conversion: sit_sfc (K) -> (C)
-          sit_import(i,j)=impData(i+i0,j+j0)-273.15
+          if (mergeData(i+i0,j+j0)) then
+!           canonical unit conversion: sit_sfc (C) -> (K)
+            impData(i+i0,j+j0)=sit_import(i,j)+273.15
+          else
+!           canonical unit conversion: sit_sfc (K) -> (C)
+            sit_import(i,j)=impData(i+i0,j+j0)-273.15
+          endif
         else
           sit_import(i,j)=0.0
         endif
@@ -938,7 +1062,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sit_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sit_import(i,j)
+          else
+            sit_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sit_import(i,j)=0.0
         endif
@@ -954,7 +1082,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          sih_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=sih_import(i,j)
+          else
+            sih_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           sih_import(i,j)=0.0
         endif
@@ -969,7 +1101,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          siu_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!           wind cannot be rotated
+!           impData(i+i0,j+j0)=siu_import(i,j)
+            impData(i+i0,j+j0)=0.0
+          else
+            siu_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           siu_import(i,j)=0.0
         endif
@@ -982,22 +1120,33 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          siv_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+!           wind cannot be rotated
+!           impData(i+i0,j+j0)=siv_import(i,j)
+            impData(i+i0,j+j0)=0.0
+          else
+            siv_import(i,j)=impData(i+i0,j+j0)
+!           rotate siu and siv to (x,y)ward
+!           assumes rotation only needed for impData
+            uij=siu_import(i,j)
+            vij=siv_import(i,j)
+            siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+            siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+          endif
         else
           siv_import(i,j)=0.0
         endif
-!       rotate siu and siv to (x,y)ward
-        uij=siu_import(i,j)
-        vij=siv_import(i,j)
-        siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-        siv_import(i,j)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
       enddo
       enddo
 #else
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          siv_import(i,j)=impData(i+i0,j+j0)
+          if (mergeData(i+i0,j+j0)) then
+            impData(i+i0,j+j0)=siv_import(i,j)
+          else
+            siv_import(i,j)=impData(i+i0,j+j0)
+          endif
         else
           siv_import(i,j)=0.0
         endif
