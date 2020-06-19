@@ -119,6 +119,7 @@ module HYCOM_Mod
   integer           :: itdmx, jtdmx
   logical           :: show_minmax
   logical           :: merge_import
+  logical           :: skip_first_import
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
@@ -435,6 +436,13 @@ module HYCOM_Mod
         msg="attribute get merge_import failed", CONTEXT)) return
       merge_import = (trim(value)==".true.")
 
+      call ESMF_AttributeGet(model, value=value, &
+        name="skip_first_import", defaultvalue=".false.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get skip_first_import failed", CONTEXT)) return
+      skip_first_import = (trim(value)==".true.")
+
 !     start Time
       call ESMF_AttributeGet(model, value=value, &
         name="ocean_start_dtg", &
@@ -529,6 +537,9 @@ module HYCOM_Mod
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
           'Merge Import           = ',merge_import
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'Skip First Import      = ',skip_first_import
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,F0.1))") trim(cname)//': ', &
           'Start DTG Since Epoch  = ',ocean_start_dtg
@@ -1309,12 +1320,16 @@ module HYCOM_Mod
     if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
-    do i=1,numImpFields
-      if (impFieldEnable(i)) then
-        call do_import(i,impField(i),.false.,currtimeString,diagnostic,rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-      endif
-    enddo
+    if (skip_first_import) then
+      skip_first_import=.false.
+    else
+      do i=1,numImpFields
+        if (impFieldEnable(i)) then
+          call do_import(i,impField(i),.false.,currtimeString,diagnostic,rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        endif
+      enddo
+    endif
 
 #ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)

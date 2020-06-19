@@ -83,9 +83,9 @@ module read_impexp_config_mod
                    "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("prcp","mean_prec_rate",&                              !07
                    "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("swflxd","mean_net_sw_flx",&                           !08
+    hycom_fld_type("swflxd","inst_net_sw_flx",&                           !08
                    "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("lwflxd","mean_net_lw_flx",&                           !09
+    hycom_fld_type("lwflxd","inst_net_lw_flx",&                           !09
                    "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("mslprs","inst_pres_height_surface",&                  !10
                    "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
