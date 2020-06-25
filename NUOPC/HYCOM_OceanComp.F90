@@ -105,7 +105,7 @@ module HYCOM_Mod
   character(len=60), pointer :: expStandName(:), impStandName(:) => NULL()
   character(len=30), pointer :: expFieldUnit(:), impFieldUnit(:) => NULL()
   logical, pointer           :: expFieldEnable(:), impFieldEnable(:) => NULL()
-  character(len=30) :: ocn_impexp_file
+  character(len=30) :: ocn_impexp_file = "dummy_file"
   integer           :: cdf_impexp_freq
   integer           :: cpl_hour, cpl_min, cpl_sec
   real              :: cpl_time_step
@@ -630,9 +630,17 @@ module HYCOM_Mod
 #endif
 
 #ifdef ESPC_COUPLE
-    call read_impexp_config(ocn_impexp_file,numExpFields,numImpFields,&
-    expFieldName,impFieldName,expStandName,impStandName,expFieldUnit,&
-    impFieldUnit,expFieldEnable,impFieldEnable,irc)
+    if (ocn_impexp_file.eq."dummy_file") then
+      call read_impexp_config(numExpFields,numImpFields,&
+        expFieldName,impFieldName,expStandName,impStandName,expFieldUnit,&
+        impFieldUnit,expFieldEnable,impFieldEnable,rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+    else
+      call read_impexp_config(ocn_impexp_file,numExpFields,numImpFields,&
+        expFieldName,impFieldName,expStandName,impStandName,expFieldUnit,&
+        impFieldUnit,expFieldEnable,impFieldEnable,rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+    endif
 
     allocate(impField(numImpFields))
     allocate(expField(numExpFields))

@@ -1,16 +1,40 @@
+!===============================================================================
+! MODULE: read_impexp_config_mod
+!
+! DESCRIPTION:
+!   This module creates HYCOM coupling field lists.
+!
+! SUBROUTINES:
+!   read_impexp_config
+!     Overloaded interface for configuring field list from file or using
+!     defaults.
+!
+!===============================================================================
+#include "HYCOM_NUOPC_Macros.h"
+!===============================================================================
 module read_impexp_config_mod
 
-  !-----------------------------------------------------------------------------
-  ! Field Configuration Utilities
-  !-----------------------------------------------------------------------------
-
+!===============================================================================
+! use modules
+!===============================================================================
   use ESMF
   use NUOPC
 
+!===============================================================================
+! settings
+!===============================================================================
   implicit none
 
   private
 
+!===============================================================================
+! public
+!===============================================================================
+  public read_impexp_config
+
+!===============================================================================
+! module variables
+!===============================================================================
   type fieldRemapFlag
     sequence
     private
@@ -45,11 +69,11 @@ module read_impexp_config_mod
     logical              :: fieldEnable = .FALSE.
     type(fieldRemapFlag) :: mapping     = FLD_REMAP_REDIST
     type(fieldMaskFlag)  :: mask        = FLD_MASK_NNE
-    real                 :: fillValue   = 999999999
+    real                 :: fillValue   = 999999999.0
   end type hycom_fld_type
 
 #ifdef CMEPS
-  type(hycom_fld_type),target,dimension(8) :: fldsImp = (/              &
+  type(hycom_fld_type),target,dimension(8) :: dfltFldsImp = (/              &
     hycom_fld_type("u10","Sa_u",                                        & !01
                    "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
     hycom_fld_type("v10","Sa_v",                                        & !02
@@ -68,7 +92,7 @@ module read_impexp_config_mod
                    "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)         &
   /)
 #else
-  type(hycom_fld_type),target,dimension(11) :: fldsImp = (/&
+  type(hycom_fld_type),target,dimension(11) :: dfltFldsImp = (/&
     hycom_fld_type("u10","inst_zonal_wind_height10m",&                    !01
                    "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("v10","inst_merid_wind_height10m",&                    !02
@@ -83,65 +107,228 @@ module read_impexp_config_mod
                    "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("prcp","mean_prec_rate",&                              !07
                    "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("swflxd","inst_net_sw_flx",&                           !08
+    hycom_fld_type("swflxd","mean_net_sw_flx",&                           !08
                    "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("lwflxd","inst_net_lw_flx",&                           !09
+    hycom_fld_type("lwflxd","mean_net_lw_flx",&                           !09
                    "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("mslprs","inst_pres_height_surface",&                  !10
                    "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
     hycom_fld_type("gt","inst_temp_height_surface",&                      !11
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
-!    hycom_fld_type("sic","ice_fraction",&                                 !12
-!                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sitx","downward_x_stress_at_sea_ice_base",&           !13
-!                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sity","downward_y_stress_at_sea_ice_base",&           !14
-!                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("siqs","downward_sea_ice_basal_solar_heat_flux",&      !15
-!                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sifh","downward_sea_ice_basal_heat_flux",&            !16
-!                   "w_m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sifs","downward_sea_ice_basal_salt_flux",&            !17
-!                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sifw","downward_sea_ice_basal_water_flux",&           !18
-!                   "kg_m-2_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sit_sfc","ice_surface_temperature",&                  !19
-!                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("siu","sea_ice_x_velocity",&                           !20
-!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("siv","sea_ice_y_velocity",&                           !21
-!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("sih","sea_ice_thickness",&                            !22
-!                   "m",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
 #endif
 
 #ifdef CMEPS
-  type(hycom_fld_type),target,dimension(1) :: fldsExp = (/              &
+  type(hycom_fld_type),target,dimension(1) :: dfltFldsExp = (/              &
     hycom_fld_type("sst","So_t",                                        & !01
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
   /)
 #else
-  type(hycom_fld_type),target,dimension(1) :: fldsExp = (/&
+  type(hycom_fld_type),target,dimension(1) :: dfltFldsExp = (/&
     hycom_fld_type("sst","sea_surface_temperature",&                         !01
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
-!    hycom_fld_type("sss","sea_surface_salinity",&                            !02
-!                   "ppt",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("ssu","sea_surface_x_velocity",&                          !03
-!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-!    hycom_fld_type("ssv","sea_surface_y_velocity",&                          !04
-!                   "m_s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
 #endif
 
-  public read_impexp_config
+!==============================================================================
+! interface blocks
+!==============================================================================
+  interface read_impexp_config
+    module procedure read_impexp_config_dflt
+    module procedure read_impexp_config_flnm
+    module procedure read_impexp_config_list
+  end interface
 
-  !-----------------------------------------------------------------------------
+  interface operator (==)
+    module procedure field_rfeq
+    module procedure field_mfeq
+  end interface
+
+  interface assignment (=)
+    module procedure field_rfas_string
+    module procedure field_mfas_string
+    module procedure field_stringas_rf
+    module procedure field_stringas_mf
+  end interface
+
+!===============================================================================
   contains
+!===============================================================================
+  subroutine read_impexp_config_dflt(numExpFields,numImpFields, &
+  expFieldName,impFieldName,expStandName,impStandName, &
+  expFieldUnit,impFieldUnit,expFieldEnable,impFieldEnable,rc)
+    integer,intent(out)                   :: numImpFields,numExpFields
+    character(len=30),pointer,intent(out) :: impFieldName(:),expFieldName(:)
+    character(len=60),pointer,intent(out) :: impStandName(:),expStandName(:)
+    character(len=30),pointer,intent(out) :: impFieldUnit(:),expFieldUnit(:)
+    logical,pointer,intent(out)           :: impFieldEnable(:),expFieldEnable(:)
+    integer,intent(out)                   :: rc                ! return code
+
+    rc = ESMF_SUCCESS
+
+    call read_impexp_config_list(dfltFldsExp,dfltFldsImp,numExpFields,numImpFields, &
+      expFieldName,impFieldName,expStandName,impStandName, &
+      expFieldUnit,impFieldUnit,expFieldEnable,impFieldEnable,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg="read_impexp_config failed", CONTEXT)) return
+
+  end subroutine read_impexp_config_dflt
+
   !-----------------------------------------------------------------------------
 
-  subroutine read_impexp_config(fname,numExpFields,numImpFields, &
+  subroutine read_impexp_config_flnm(fname,numExpFields,numImpFields, &
   expFieldName,impFieldName,expStandName,impStandName, &
   expFieldUnit,impFieldUnit,expFieldEnable,impFieldEnable,rc)
     character(len=30),intent(in)          :: fname
+    integer,intent(out)                   :: numImpFields,numExpFields
+    character(len=30),pointer,intent(out) :: impFieldName(:),expFieldName(:)
+    character(len=60),pointer,intent(out) :: impStandName(:),expStandName(:)
+    character(len=30),pointer,intent(out) :: impFieldUnit(:),expFieldUnit(:)
+    logical,pointer,intent(out)           :: impFieldEnable(:),expFieldEnable(:)
+    integer,intent(out)                   :: rc                ! return code
+
+    ! local variables
+    type(ESMF_Config)                  :: fieldsConfig
+    type(NUOPC_FreeFormat)             :: attrFF
+    integer                            :: lineCount
+    integer                            :: tokenCount
+    type(hycom_fld_type),allocatable   :: fldsExp(:)
+    type(hycom_fld_type),allocatable   :: fldsImp(:)
+    character(len=NUOPC_FreeFormatLen) :: tokenList(7)
+    integer                            :: i,j
+    integer                            :: stat
+
+    rc = ESMF_SUCCESS
+
+!   load fname into fieldsConfig
+    fieldsConfig = ESMF_ConfigCreate(rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    call ESMF_ConfigLoadFile(fieldsConfig, fname, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+
+!   read export fields from config
+    attrFF = NUOPC_FreeFormatCreate(fieldsConfig, &
+      label="ocn_export_fields", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    call NUOPC_FreeFormatGet(attrFF, lineCount=lineCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    allocate(fldsExp(lineCount), stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of fldsExp memory failed.", &
+      line=__LINE__,file=__FILE__)) &
+      return  ! bail out
+    do i=1, lineCount
+      call NUOPC_FreeFormatGetLine(attrFF, line=i, &
+        tokenCount=tokenCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      if (tokenCount.ne.7) then
+        call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+          msg="Malformed field list item FORMAT="// &
+            "'NAME' 'STANDARD_NAME' 'UNITS' 'ENABLED' "// &
+            "'MAPPING_TYPE' 'MASKING_FLAG' 'FILL_VALUE' in "//trim(fname), &
+          CONTEXT, rcToReturn=rc)
+        return ! bail out
+      endif
+      call NUOPC_FreeFormatGetLine(attrFF, line=i, tokenList=tokenList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      fldsExp(i)%fieldName=tokenList(1)
+      fldsExp(i)%standName=tokenList(2)
+      fldsExp(i)%fieldUnit=tokenList(3)
+      tokenList(4) = ESMF_UtilStringUpperCase(tokenList(4), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      fldsExp(i)%fieldEnable=(tokenList(4).eq.".TRUE.")
+      fldsExp(i)%mapping=tokenList(5)
+      fldsExp(i)%mask=tokenList(6)
+      fldsExp(i)%fillValue = ESMF_UtilString2Real(tokenList(7), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    enddo
+    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+
+!   read import fields from config
+    attrFF = NUOPC_FreeFormatCreate(fieldsConfig, &
+      label="ocn_import_fields", rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    call NUOPC_FreeFormatGet(attrFF, lineCount=lineCount, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    allocate(fldsImp(lineCount), stat=stat)
+    if (ESMF_LogFoundAllocError(statusToCheck=stat, &
+      msg="Allocation of fldsImp memory failed.", &
+      line=__LINE__,file=__FILE__)) &
+      return  ! bail out
+    do i=1,lineCount
+      call NUOPC_FreeFormatGetLine(attrFF, line=i, &
+        tokenCount=tokenCount, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      if (tokenCount.ne.7) then
+        call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+          msg="Malformed field list item FORMAT="// &
+            "'NAME' 'STANDARD_NAME' 'UNITS' 'ENABLED' "// &
+            "'MAPPING_TYPE' 'MASKING_FLAG' 'FILL_VALUE' in "//trim(fname), &
+          CONTEXT, rcToReturn=rc)
+        return ! bail out
+      endif
+      call NUOPC_FreeFormatGetLine(attrFF, line=i, tokenList=tokenList, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      fldsImp(i)%fieldName=tokenList(1)
+      fldsImp(i)%standName=tokenList(2)
+      fldsImp(i)%fieldUnit=tokenList(3)
+      tokenList(4) = ESMF_UtilStringUpperCase(tokenList(4), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      fldsImp(i)%fieldEnable=(tokenList(4).eq.".TRUE.")
+      fldsImp(i)%mapping=tokenList(5)
+      fldsImp(i)%mask=tokenList(6)
+      fldsImp(i)%fillValue = ESMF_UtilString2Real(tokenList(7), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+    enddo
+    call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+
+!   create field lists
+    call read_impexp_config_list(fldsExp,fldsImp,numExpFields,numImpFields, &
+      expFieldName,impFieldName,expStandName,impStandName, &
+      expFieldUnit,impFieldUnit,expFieldEnable,impFieldEnable,rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+
+!   cleanup
+    deallocate(fldsExp, stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of fldsExp memory failed.", &
+      line=__LINE__,file=__FILE__)) &
+      return  ! bail out
+    deallocate(fldsImp, stat=stat)
+    if (ESMF_LogFoundDeallocError(statusToCheck=stat, &
+      msg="Deallocation of fldsImp memory failed.", &
+      line=__LINE__,file=__FILE__)) &
+      return  ! bail out
+    call ESMF_ConfigDestroy(fieldsConfig, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, &
+      msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+
+  end subroutine read_impexp_config_flnm
+
+  !-----------------------------------------------------------------------------
+
+  subroutine read_impexp_config_list(fldsExp,fldsImp,numExpFields,&
+  numImpFields,expFieldName,impFieldName,expStandName,impStandName, &
+  expFieldUnit,impFieldUnit,expFieldEnable,impFieldEnable,rc)
+    type(hycom_fld_type),intent(in)       :: fldsExp(:)
+    type(hycom_fld_type),intent(in)       :: fldsImp(:)
     integer,intent(out)                   :: numImpFields,numExpFields
     character(len=30),pointer,intent(out) :: impFieldName(:),expFieldName(:)
     character(len=60),pointer,intent(out) :: impStandName(:),expStandName(:)
@@ -234,8 +421,96 @@ module read_impexp_config_mod
       call ESMF_LogWrite(trim(logMsg), ESMF_LOGMSG_INFO)
     enddo
 
-  end subroutine
+  end subroutine read_impexp_config_list
 
   !-----------------------------------------------------------------------------
 
+  function field_rfeq(rf1, rf2)
+    logical field_rfeq
+    type(fieldRemapFlag), intent(in) :: rf1, rf2
+    field_rfeq = (rf1%remap == rf2%remap)
+  end function field_rfeq
+
+  !-----------------------------------------------------------------------------
+
+  subroutine field_rfas_string(string, rfval)
+    character(len=*), intent(out) :: string
+    type(fieldRemapFlag), intent(in) :: rfval
+    if (rfval == FLD_REMAP_UNKOWN) then
+      write(string,'(a)') 'FLD_REMAP_UNKOWN'
+    elseif (rfval == FLD_REMAP_REDIST) then
+      write(string,'(a)') 'FLD_REMAP_REDIST'
+    elseif (rfval == FLD_REMAP_BILINR) then
+      write(string,'(a)') 'FLD_REMAP_BILINR'
+    elseif (rfval == FLD_REMAP_CONSRV) then
+      write(string,'(a)') 'FLD_REMAP_CONSRV'
+    else
+      write(string,'(a)') 'FLD_REMAP_ERROR'
+    endif
+  end subroutine field_rfas_string
+
+  !-----------------------------------------------------------------------------
+
+  subroutine field_stringas_rf(rfval, string)
+    type(fieldRemapFlag), intent(out) :: rfval
+    character(len=*), intent(in) :: string
+    if (string .eq. 'FLD_REMAP_UNKOWN') then
+      rfval = FLD_REMAP_UNKOWN
+    elseif (string .eq. 'FLD_REMAP_REDIST') then
+      rfval = FLD_REMAP_REDIST
+    elseif (string .eq.'FLD_REMAP_BILINR') then
+      rfval = FLD_REMAP_BILINR
+    elseif (string .eq. 'FLD_REMAP_CONSRV') then
+      rfval = FLD_REMAP_CONSRV
+    else
+      rfval = FLD_REMAP_ERROR
+    endif
+  end subroutine field_stringas_rf
+
+  !-----------------------------------------------------------------------------
+
+  function field_mfeq(mf1, mf2)
+    logical field_mfeq
+    type(fieldMaskFlag), intent(in) :: mf1, mf2
+    field_mfeq = (mf1%mask == mf2%mask)
+  end function field_mfeq
+
+  !-----------------------------------------------------------------------------
+
+  subroutine field_mfas_string(string, mfval)
+    character(len=*), intent(out) :: string
+    type(fieldMaskFlag), intent(in) :: mfval
+    if (mfval == FLD_MASK_UNK) then
+      write(string,'(a)') 'FLD_MASK_UNK'
+    elseif (mfval == FLD_MASK_NNE) then
+      write(string,'(a)') 'FLD_MASK_NNE'
+    elseif (mfval == FLD_MASK_LND) then
+      write(string,'(a)') 'FLD_MASK_LND'
+    elseif (mfval == FLD_MASK_WTR) then
+      write(string,'(a)') 'FLD_MASK_WTR'
+    else
+      write(string,'(a)') 'FLD_MASK_ERR'
+    endif
+  end subroutine field_mfas_string
+
+  !-----------------------------------------------------------------------------
+
+  subroutine field_stringas_mf(mfval,string)
+    type(fieldMaskFlag), intent(out) :: mfval
+    character(len=*), intent(in) :: string
+    if (string .eq. 'FLD_MASK_UNK') then
+      mfval = FLD_MASK_UNK
+    elseif (string .eq. 'FLD_MASK_NNE') then
+      mfval = FLD_MASK_NNE
+    elseif (string .eq. 'FLD_MASK_LND') then
+      mfval = FLD_MASK_LND
+    elseif (string .eq. 'FLD_MASK_WTR') then
+      mfval = FLD_MASK_WTR
+    else
+      mfval = FLD_MASK_ERR
+    endif
+  end subroutine field_stringas_mf
+
+!===============================================================================
 end module read_impexp_config_mod
+!===============================================================================
