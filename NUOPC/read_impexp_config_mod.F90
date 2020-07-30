@@ -73,24 +73,56 @@ module read_impexp_config_mod
   end type hycom_fld_type
 
 #ifdef CMEPS
-  type(hycom_fld_type),target,dimension(8) :: dfltFldsImp = (/              &
-    hycom_fld_type("u10","Sa_u",                                        & !01
-                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-    hycom_fld_type("v10","Sa_v",                                        & !02
-                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-    hycom_fld_type("airtmp","Sa_tbot",                                  & !03
+#ifdef DATM
+  type(hycom_fld_type),target,dimension(11) :: dfltFldsImp = (/         &
+    hycom_fld_type("taux10","mean_zonal_moment_flx",                    & !01 Faxa_taux
+                   "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("tauy10","mean_merid_moment_flx",                    & !02 Faxa_tauy
+                   "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("airtmp","inst_temp_height_lowest",                  & !03 Sa_tbot
                    "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
-    hycom_fld_type("airhum","Sa_shum",                                  & !04
+    hycom_fld_type("airhum","inst_spec_humid_height_lowest",            & !04 Sa_shum
                    "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),   &
-    hycom_fld_type("swflxd","Faxa_swnet",                               & !05
-                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-    hycom_fld_type("lwflxd","Faxa_lwdn",                                & !06
-                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-    hycom_fld_type("prcp","Faxa_rainl",                                 & !07
+    hycom_fld_type("prcp","mean_prec_rate",                             & !05 Faxa_rain
                    "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-    hycom_fld_type("mslprs","Sa_pbot",                                  & !08
-                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)         &
-  /)
+    hycom_fld_type("mslprs","inst_pres_height_surface",                 & !06 Sa_pslv
+                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),        &
+    hycom_fld_type("swflx_net", "mean_net_sw_flx",                      & !07 Foxx_swnet 
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("lwflx_net", "mean_net_lw_flx",                      & !08 Foxx_lwnet
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("wndspd10", "inst_wind_speed_height_lowest",         & !09 Sa_wspd
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("gt", "inst_temp_skin_temperature",                  & !10 Sa_tskn
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("sic","ice_fraction",                                & !11 Si_ifrac
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
+    /)
+#else
+  type(hycom_fld_type),target,dimension(11) :: dfltFldsImp = (/         &
+    hycom_fld_type("u10","inst_zonal_wind_height_lowest",               & !01 Sa_u
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("v10","inst_merid_wind_height_lowest",               & !02 Sa_v
+                   "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("taux10","mean_zonal_moment_flx",                    & !03 Faxa_taux
+                   "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("tauy10","mean_merid_moment_flx",                    & !04 Faxa_tauy
+                   "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("airtmp","inst_temp_height_lowest",                  & !05 Sa_tbot
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("airhum","inst_spec_humid_height_lowest",            & !06 Sa_shum
+                   "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),   &
+    hycom_fld_type("prcp","mean_prec_rate",                             & !07 Faxa_rain
+                   "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+    hycom_fld_type("swflx_net","mean_net_sw_flx",                       & !08 Foxx_swnet
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("lwflx_net","mean_net_lw_flx",                       & !09 Foxx_lwnet
+                   "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
+    hycom_fld_type("mslprs","inst_pres_height_surface",                 & !10 Sa_pslv
+                   "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),        &
+    hycom_fld_type("gt","inst_temp_skin_temperature",                   & !11 Sa_tskn
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
+#endif
 #else
   type(hycom_fld_type),target,dimension(11) :: dfltFldsImp = (/&
     hycom_fld_type("u10","inst_zonal_wind_height10m",&                    !01
@@ -118,10 +150,17 @@ module read_impexp_config_mod
 #endif
 
 #ifdef CMEPS
-  type(hycom_fld_type),target,dimension(1) :: dfltFldsExp = (/              &
-    hycom_fld_type("sst","So_t",                                        & !01
-                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
-  /)
+  type(hycom_fld_type),target,dimension(5) :: dfltFldsExp = (/          &
+    hycom_fld_type("sst","sea_surface_temperature",                     & !01 So_t
+                   "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("mask","ocean_mask",                                 & !02 So_omask
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("cpl_scalars","cpl_scalars",                         & !03 cpl_scalars
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("ssu","ocn_current_zonal",                           & !04 So_u
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
+    hycom_fld_type("ssv","ocn_current_merid",                           & !05 So_v
+                   "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)/)
 #else
   type(hycom_fld_type),target,dimension(1) :: dfltFldsExp = (/&
     hycom_fld_type("sst","sea_surface_temperature",&                         !01

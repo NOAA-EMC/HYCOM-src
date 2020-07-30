@@ -131,6 +131,14 @@ module HYCOM_Mod
 ! espc_timer(6): Run Phase export
 #endif
   real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20
+#ifdef CMEPS
+  character(len=128) :: scalar_field_name = ''
+  integer :: scalar_field_count = 0
+  integer :: scalar_field_idx_grid_nx = 0
+  integer :: scalar_field_idx_grid_ny = 0
+  logical :: isPresent, isSet
+  integer :: iostat
+#endif
 
 !===============================================================================
   contains
@@ -210,8 +218,8 @@ module HYCOM_Mod
       defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
     verbosity = ESMF_UtilString2Int(value, &
-      specialStringList=(/"min","max","bit16","maxplus"/), &
-      specialValueList=(/0,65535,65536,131071/), rc=rc)
+      specialStringList=(/"off","low","high","max","bit16","maxplus"/), &
+      specialValueList=(/0,9985,32513,65535,65536,131071/), rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
     ! Switch to IPDv03 by filtering all other phaseMap entries
@@ -222,6 +230,62 @@ module HYCOM_Mod
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
+#ifdef CMEPS
+    ! Set CMEPS specific attributes
+    scalar_field_name = ""
+    call NUOPC_CompAttributeGet(model, name="ScalarFieldName", value=value, &
+      isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (isPresent .and. isSet) then
+      scalar_field_name = trim(value)
+      call ESMF_LogWrite('ScalarFieldName = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+    end if
+
+    scalar_field_count = 0
+    call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", value=value, &
+      isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (isPresent .and. isSet) then
+      read(value, '(i)', iostat=iostat) scalar_field_count
+      if (iostat /= 0) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg=": ScalarFieldCount not an integer: "//trim(value), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      end if
+      call ESMF_LogWrite('ScalarFieldCount = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+    end if
+
+    scalar_field_idx_grid_nx = 0
+    call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", value=value, &
+      isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (isPresent .and. isSet) then
+      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_nx
+      if (iostat /= 0) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg=": ScalarFieldIdxGridNX not an integer: "//trim(value), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      end if
+      call ESMF_LogWrite('ScalarFieldIdxGridNX = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+    end if
+
+    scalar_field_idx_grid_ny = 0
+    call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", value=value, &
+      isPresent=isPresent, isSet=isSet, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (isPresent .and. isSet) then
+      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_ny
+      if (iostat /= 0) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg="ScalarFieldIdxGridNY not an integer: "//trim(value), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      end if
+      call ESMF_LogWrite('ScalarFieldIdxGridNY = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+    end if
+#endif
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     subroutine HYCOM_AttributeGet(rc)
@@ -757,8 +821,8 @@ module HYCOM_Mod
       defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return  ! bail out
     verbosity = ESMF_UtilString2Int(value, &
-      specialStringList=(/"min","max","bit16","maxplus"/), &
-      specialValueList=(/0,65535,65536,131071/), rc=rc)
+      specialStringList=(/"off","low","high","max","bit16","maxplus"/), & 
+      specialValueList=(/0,9985,32513,65535,65536,131071/), rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return  ! bail out
 
     if (lPet.eq.0) print *,"hycom, InitializeP2 called"
@@ -1148,11 +1212,23 @@ module HYCOM_Mod
           if (lPet.eq.0) print *,"hycom, export field created, name=", &
             expFieldName(i)
 
+#ifdef CMEPS
+          if (trim(expFieldName(i)) == trim(scalar_field_name)) then
+            call SetScalarField(expField(i), rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+          else
+#endif
 !         exportable field:
           expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
             typekind=ESMF_TYPEKIND_RX, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
 
+          ! zero out
+          call ESMF_FieldFill(expField(i), dataFillScheme="const", const1=0.D0, rc=rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+#ifdef CMEPS
+          end if
+#endif
           call NUOPC_Realize(exportState, field=expField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
           if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
@@ -1170,7 +1246,11 @@ module HYCOM_Mod
     enddo
 
     do i=1,numExpFields
+#ifdef CMEPS
+      if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
+#else
       if (expFieldEnable(i)) then
+#endif
         call do_export(i,expField(i),rc)
         if (ESMF_STDERRORCHECK(rc)) return
       endif
@@ -1187,6 +1267,19 @@ module HYCOM_Mod
 
     deallocate(tmp_e)
     deallocate(tmp_c)
+#endif
+
+#ifdef CMEPS
+    ! set scalar data in export state
+    if (len_trim(scalar_field_name) > 0) then
+      call State_SetScalar(dble(itdmx),scalar_field_idx_grid_nx, exportState, lPet, &
+        scalar_field_name, scalar_field_count, rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+
+      call State_SetScalar(dble(jtdmx),scalar_field_idx_grid_ny, exportState, lPet, &
+        scalar_field_name, scalar_field_count, rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+    endif
 #endif
 
     call hycom_couple_final(rc=rc)
@@ -1257,8 +1350,8 @@ module HYCOM_Mod
       defaultValue="0", convention="NUOPC", purpose="Instance", rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return  ! bail out
     verbosity = ESMF_UtilString2Int(value, &
-      specialStringList=(/"min","max","bit16","maxplus"/), &
-      specialValueList=(/0,65535,65536,131071/), rc=rc)
+      specialStringList=(/"off","low","high","max","bit16","maxplus"/), &
+      specialValueList=(/0,9985,32513,65535,65536,131071/), rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return  ! bail out
 
 #ifdef ESPC_TIMER
@@ -1554,6 +1647,72 @@ module HYCOM_Mod
   end subroutine OCEAN_Final
 
   !-----------------------------------------------------------------------------
+
+#ifdef CMEPS
+  ! Set scalar data from state for a particula name
+  subroutine State_SetScalar(value, scalar_id, State, mytask, scalar_name, scalar_count,  rc)
+    real(ESMF_KIND_R8), intent(in)    :: value
+    integer,            intent(in)    :: scalar_id
+    type(ESMF_State),   intent(inout) :: State
+    integer,            intent(in)    :: mytask
+    character(len=*),   intent(in)    :: scalar_name
+    integer,            intent(in)    :: scalar_count
+    integer,            intent(inout) :: rc
+
+    ! local variables
+    type(ESMF_Field)                :: field
+    real(ESMF_KIND_R8), pointer     :: farrayptr(:,:)
+    character(len=*), parameter     :: subname='(HYCOM_cap:State_SetScalar)'
+    !--------------------------------------------------------
+
+    rc = ESMF_SUCCESS
+
+    call ESMF_StateGet(State, itemName=trim(scalar_name), field=field, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+
+    if (mytask == 0) then
+      call ESMF_FieldGet(field, farrayPtr=farrayptr, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+
+      if (scalar_id < 0 .or. scalar_id > scalar_count) then
+        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+          msg=subname//": ERROR in scalar_id", &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return
+      endif
+
+      farrayptr(scalar_id,1) = value
+    endif
+
+  end subroutine State_SetScalar
+
+  subroutine SetScalarField(field, rc)
+    ! create a field with scalar data on the root pe
+    type(ESMF_Field), intent(inout) :: field
+    integer,          intent(inout) :: rc
+
+    ! local variables
+    type(ESMF_Distgrid) :: distgrid
+    type(ESMF_Grid)     :: grid
+    character(len=*), parameter     :: subname='(HYCOM_cap:SetScalarField)'
+    !--------------------------------------------------------
+
+    rc = ESMF_SUCCESS
+
+    ! create a DistGrid with a single index space element, which gets mapped onto DE 0.
+    distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+
+    grid = ESMF_GridCreate(distgrid, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+
+    ! num of scalar values
+    field = ESMF_FieldCreate(name=trim(scalar_field_name), grid=grid, typekind=ESMF_TYPEKIND_R8, &
+         ungriddedLBound=(/1/), ungriddedUBound=(/scalar_field_count/), gridToFieldMap=(/2/), rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+
+  end subroutine SetScalarField
+#endif
 
 #ifdef ESPC_COUPLE
   subroutine do_export(k,field,rc)
