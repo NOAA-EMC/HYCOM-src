@@ -32,6 +32,13 @@
             tmx(i,j) = 0.5*(temp(i,j,1,1)+temp(i,j,1,2))
         enddo
         enddo
+!==>  export to med
+      else if(fieldName .eq. 'mask' ) then
+        do j=1,jj
+        do i= 1,ii
+            tmx(i,j) = ishlf(i,j)
+        enddo
+        enddo
 !==>  export to ice
       else if(fieldName .eq. 'ssu' .or. &
               fieldName .eq. 'ssv'     ) then
