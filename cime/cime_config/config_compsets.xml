@@ -40,18 +40,70 @@
   <!-- Standalone HYCOM -->
   <compset>
     <alias>CHYCOM_STD</alias>
-    <lname>FCST_SATM_SLND_SICE_hycom_SROF_SGLC_SWAV</lname>
+    <lname>2000_SATM_SLND_SICE_hycom_SROF_SGLC_SWAV_SESP</lname>
   </compset>
-  <!-- HYCOM with data atmosphere (JRA re-analysis) -->
+
+  <!-- HYCOM with data atmosphere -->
   <compset>
     <alias>CHYCOM_JRA</alias>
-    <lname>FCST_DATM%JRA_SLND_SICE_hycom_SROF_SGLC_SWAV</lname>
+    <lname>2000_DATM%JRA_SLND_SICE_hycom_SROF_SGLC_SWAV_SESP</lname>
+  </compset>
+  <compset>
+    <alias>CHYCOM_NYF</alias>
+    <lname>2000_DATM%NYF_SLND_SICE_hycom_SROF_SGLC_SWAV_SESP</lname>
+  </compset>
+  <compset>
+    <alias>CHYCOM_ERA5</alias>
+    <lname>2000_DATM%ERA5_SLND_SICE_hycom_SROF_SGLC_SWAV_SESP</lname>
+  </compset>
+
+  <!-- HYCOM with data atmosphere and ice -->
+  <compset>
+    <alias>CHYCOM_JRA_DICE</alias>
+    <lname>2000_DATM%JRA_SLND_DICE%SSMI_hycom_SROF_SGLC_SWAV_SESP</lname>
+  </compset>
+  <compset>
+    <alias>CHYCOM_NYF_DICE</alias>
+    <lname>2000_DATM%NYF_SLND_DICE%SSMI_hycom_SROF_SGLC_SWAV_SESP</lname>
   </compset>
 
   <entries>
-    <entry id="COMP_CLASSES">
-	<value compset="SATM_SLND_SICE_hycom.*_SROF_SGLC_SWAV">OCN,CPL</value>
-        <value compset="DATM%JRA_SLND_SICE_hycom.*_SROF_SGLC_SWAV">ATM,OCN,CPL</value>
+    <!--- default values for HAFS app -->
+    <entry id="COUPLING_MODE">
+      <values>
+        <value>hafs</value>
+      </values>
+    </entry>
+    <entry id="ADD_AOFLUX_TO_RUNSEQ">
+      <values>
+        <value>FALSE</value>
+      </values>
+    </entry>
+    <!-- default values for Dorian case -->
+    <entry id="RUN_STARTDATE">
+      <values>
+	<value>2019-08-29</value>
+      </values>
+    </entry>
+    <entry id="START_TOD">
+      <values>
+        <value>0</value>
+      </values>
+    </entry>
+    <entry id="STOP_OPTION">
+      <values>
+        <value>nhours</value>
+      </values>
+    </entry>
+    <entry id="STOP_N">
+      <values>
+        <value>126</value>
+      </values>
+    </entry>
+    <entry id="DATM_PRESAERO">
+      <values>
+        <value>none</value>
+      </values>
     </entry>
   </entries>
 
