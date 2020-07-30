@@ -611,9 +611,15 @@
             endif
 #else
             if     (natm.eq.2) then
+#if defined (DATM) || defined(CMEPS)
+              temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
+                              seatmp(i,j,l0))/&
+                            (1.0+delt1*rmu(i,j))
+#else
               temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
                  ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) )/ &
                             (1.0+delt1*rmu(i,j))
+#endif /* DATM or CMEPS*/
             else
               temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
                  ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1 &
@@ -1335,8 +1341,12 @@
 #else
             if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
+#if defined (DATM) || defined(CMEPS)
+              tdif = tsur - surtmp(i,j,l0)
+#else
               tdif = tsur - &
                      ( surtmp(i,j,l0)*w0+surtmp(i,j,l1)*w1)
+#endif /* DATM or CMEPS */
             else
               tdif = tsur - &
                      ( surtmp(i,j,l0)*w0+surtmp(i,j,l1)*w1 &
@@ -1383,7 +1393,11 @@
 #else
           if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
+#if defined (DATM) || defined(CMEPS)
+            esst = seatmp(i,j,l0)
+#else
             esst = seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1
+#endif /* DATM or CMEPS */
           else
             esst = seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1+ &
                    seatmp(i,j,l2)*w2+seatmp(i,j,l3)*w3
@@ -1916,8 +1930,12 @@
 #else
           if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
+#if defined (DATM) || defined(CMEPS)
+            sstdif = seatmp(i,j,l0)-temp(i,j,1,n)
+#else
             sstdif = ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) - &
                      temp(i,j,1,n)
+#endif /* DATM or CMEPS */
           else
             sstdif = ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1 &
                       +seatmp(i,j,l2)*w2+seatmp(i,j,l3)*w3) - &
