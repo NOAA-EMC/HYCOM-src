@@ -129,8 +129,8 @@ module hycom_couple
       if (.not.allocated(cpldom%area_q)) allocate(cpldom%area_q(itdm,jtdm))
       if (.not.allocated(cpldom%mask_q)) allocate(cpldom%mask_q(itdm,jtdm))
 !     read hycom regional.grid.a
-      call get_coord(cpldom%lat_p, cpldom%lon_p, cpldom%area_p, cpldom%lat_q, &
-        cpldom%lon_q, cpldom%area_q, itdm, jtdm, rc)
+      call get_coord(cpldom%lat_p, cpldom%lon_p, cpldom%lat_q, &
+        cpldom%lon_q, itdm, jtdm, rc)
     else
       if (.not.allocated(cpldom%lon_p)) allocate(cpldom%lon_p(1,1))
       if (.not.allocated(cpldom%lat_p)) allocate(cpldom%lat_p(1,1))
