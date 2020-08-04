@@ -422,6 +422,7 @@
       subroutine thermf(m,n, dtime)
       use mod_xc         ! HYCOM communication interface
       use mod_cb_arrays  ! HYCOM saved arrays
+      use mod_hycom, only : mediator_type, atm_model_type
       implicit none
 !
       integer m,n
@@ -611,15 +612,15 @@
             endif
 #else
             if     (natm.eq.2) then
-#if defined (DATM) || defined(CMEPS)
-              temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
-                              seatmp(i,j,l0))/&
-                            (1.0+delt1*rmu(i,j))
-#else
-              temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
-                 ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) )/ &
-                            (1.0+delt1*rmu(i,j))
-#endif /* DATM or CMEPS*/
+              if (trim(mediator_type) == "cmeps") then
+                temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
+                                seatmp(i,j,l0))/&
+                              (1.0+delt1*rmu(i,j))
+              else
+                temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
+                   ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) )/ &
+                              (1.0+delt1*rmu(i,j))
+              end if
             else
               temp(i,j,k,n)=( temp(i,j,k,n)+delt1*rmu(i,j)* &
                  ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1 &
@@ -1049,6 +1050,7 @@
 #if defined(STOKES)
       use mod_stokes  !    HYCOM Stokes Drift
 #endif
+      use mod_hycom, only : mediator_type, atm_model_type
       implicit none
 !
       integer m,n, j
@@ -1341,12 +1343,12 @@
 #else
             if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
-#if defined (DATM) || defined(CMEPS)
-              tdif = tsur - surtmp(i,j,l0)
-#else
-              tdif = tsur - &
-                     ( surtmp(i,j,l0)*w0+surtmp(i,j,l1)*w1)
-#endif /* DATM or CMEPS */
+              if (trim(mediator_type) == "cmeps") then
+                tdif = tsur - surtmp(i,j,l0)
+              else
+                tdif = tsur - &
+                       ( surtmp(i,j,l0)*w0+surtmp(i,j,l1)*w1)
+              end if
             else
               tdif = tsur - &
                      ( surtmp(i,j,l0)*w0+surtmp(i,j,l1)*w1 &
@@ -1393,11 +1395,11 @@
 #else
           if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
-#if defined (DATM) || defined(CMEPS)
-            esst = seatmp(i,j,l0)
-#else
-            esst = seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1
-#endif /* DATM or CMEPS */
+            if (trim(mediator_type) == "cmeps") then
+              esst = seatmp(i,j,l0)
+            else
+              esst = seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1
+            end if
           else
             esst = seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1+ &
                    seatmp(i,j,l2)*w2+seatmp(i,j,l3)*w3
@@ -1930,12 +1932,12 @@
 #else
           if     (natm.eq.2) then
 #endif /* USE_NUOPC_CESMBETA */
-#if defined (DATM) || defined(CMEPS)
-            sstdif = seatmp(i,j,l0)-temp(i,j,1,n)
-#else
-            sstdif = ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) - &
-                     temp(i,j,1,n)
-#endif /* DATM or CMEPS */
+            if (trim(mediator_type) == "cmeps") then
+              sstdif = seatmp(i,j,l0)-temp(i,j,1,n)
+            else
+              sstdif = ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1) - &
+                       temp(i,j,1,n)
+            end if
           else
             sstdif = ( seatmp(i,j,l0)*w0+seatmp(i,j,l1)*w1 &
                       +seatmp(i,j,l2)*w2+seatmp(i,j,l3)*w3) - &

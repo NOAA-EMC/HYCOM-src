@@ -72,6 +72,12 @@ module HYCOM_Mod
                           import_to_hycom_deb, &
                           ocn_import_forcing, &
                           hycom_couple_final
+  use mod_hycom, only: scalar_field_name, &
+                       scalar_field_count, &
+                       scalar_field_idx_grid_nx, &
+                       scalar_field_idx_grid_ny, &
+                       mediator_type, &
+                       atm_model_type
 #ifdef ESPC_COUPLE
   use read_impexp_config_mod
   use impexpField_cdf_mod
@@ -131,14 +137,6 @@ module HYCOM_Mod
 ! espc_timer(6): Run Phase export
 #endif
   real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20
-#ifdef CMEPS
-  character(len=128) :: scalar_field_name = ''
-  integer :: scalar_field_count = 0
-  integer :: scalar_field_idx_grid_nx = 0
-  integer :: scalar_field_idx_grid_ny = 0
-  logical :: isPresent, isSet
-  integer :: iostat
-#endif
 
 !===============================================================================
   contains
@@ -199,6 +197,8 @@ module HYCOM_Mod
     integer                 :: verbosity, diagnostic
     character(len=64)       :: value
     integer                 :: stat
+    logical                 :: isPresent, isSet
+    integer                 :: iostat
 
     rc = ESMF_SUCCESS
 
@@ -230,62 +230,78 @@ module HYCOM_Mod
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-#ifdef CMEPS
-    ! Set CMEPS specific attributes
-    scalar_field_name = ""
-    call NUOPC_CompAttributeGet(model, name="ScalarFieldName", value=value, &
+    ! Coupled with CMEPS mediator?
+    call NUOPC_CompAttributeGet(model, name="ScalarFieldName", &
       isPresent=isPresent, isSet=isSet, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
     if (isPresent .and. isSet) then
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldName", value=value, rc=rc)
       scalar_field_name = trim(value)
+      mediator_type = "cmeps"
       call ESMF_LogWrite('ScalarFieldName = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
     end if
 
-    scalar_field_count = 0
-    call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", value=value, &
+    ! Using data atmosphere or not?
+    call NUOPC_CompAttributeGet(model, name="ATM_model", &
       isPresent=isPresent, isSet=isSet, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
     if (isPresent .and. isSet) then
-      read(value, '(i)', iostat=iostat) scalar_field_count
-      if (iostat /= 0) then
-        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg=": ScalarFieldCount not an integer: "//trim(value), &
-          line=__LINE__, file=__FILE__, rcToReturn=rc)
-        return
-      end if
-      call ESMF_LogWrite('ScalarFieldCount = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+      call NUOPC_CompAttributeGet(model, name="ATM_model", value=atm_model_type, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      call ESMF_LogWrite('ATM_model = '//trim(atm_model_type), ESMF_LOGMSG_INFO, rc=rc)
     end if
 
-    scalar_field_idx_grid_nx = 0
-    call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", value=value, &
-      isPresent=isPresent, isSet=isSet, rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-    if (isPresent .and. isSet) then
-      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_nx
-      if (iostat /= 0) then
-        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg=": ScalarFieldIdxGridNX not an integer: "//trim(value), &
-          line=__LINE__, file=__FILE__, rcToReturn=rc)
-        return
+    ! Retrieve CMEPS specific attributes
+    if (trim(mediator_type) == "cmeps") then
+      scalar_field_count = 0
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", value=value, &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        read(value, '(i)', iostat=iostat) scalar_field_count
+        if (iostat /= 0) then
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg=": ScalarFieldCount not an integer: "//trim(value), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+        end if
+        call ESMF_LogWrite('ScalarFieldCount = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
       end if
-      call ESMF_LogWrite('ScalarFieldIdxGridNX = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+
+      scalar_field_idx_grid_nx = 0
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", value=value, &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        read(value, '(i)', iostat=iostat) scalar_field_idx_grid_nx
+        if (iostat /= 0) then
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg=": ScalarFieldIdxGridNX not an integer: "//trim(value), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+        end if
+        call ESMF_LogWrite('ScalarFieldIdxGridNX = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+      end if
+
+      scalar_field_idx_grid_ny = 0
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", value=value, &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        read(value, '(i)', iostat=iostat) scalar_field_idx_grid_ny
+        if (iostat /= 0) then
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg="ScalarFieldIdxGridNY not an integer: "//trim(value), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+        end if
+        call ESMF_LogWrite('ScalarFieldIdxGridNY = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
+      end if
+
+      ! Set import/export field list
+      call set_impexp_fields()
     end if
 
-    scalar_field_idx_grid_ny = 0
-    call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", value=value, &
-      isPresent=isPresent, isSet=isSet, rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-    if (isPresent .and. isSet) then
-      read(value, '(i)', iostat=iostat) scalar_field_idx_grid_ny
-      if (iostat /= 0) then
-        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg="ScalarFieldIdxGridNY not an integer: "//trim(value), &
-          line=__LINE__, file=__FILE__, rcToReturn=rc)
-        return
-      end if
-      call ESMF_LogWrite('ScalarFieldIdxGridNY = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
-    end if
-#endif
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     subroutine HYCOM_AttributeGet(rc)
@@ -1212,23 +1228,21 @@ module HYCOM_Mod
           if (lPet.eq.0) print *,"hycom, export field created, name=", &
             expFieldName(i)
 
-#ifdef CMEPS
-          if (trim(expFieldName(i)) == trim(scalar_field_name)) then
-            call SetScalarField(expField(i), rc)
-            if (ESMF_STDERRORCHECK(rc)) return
+          if ((trim(mediator_type) == "cmeps") .and. &
+              (trim(expFieldName(i)) == trim(scalar_field_name))) then
+              call SetScalarField(expField(i), rc)
+              if (ESMF_STDERRORCHECK(rc)) return
           else
-#endif
-!         exportable field:
-          expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
-            typekind=ESMF_TYPEKIND_RX, rc=rc)
-          if (ESMF_STDERRORCHECK(rc)) return
+!           exportable field:
+            expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
+              typekind=ESMF_TYPEKIND_RX, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
 
-          ! zero out
-          call ESMF_FieldFill(expField(i), dataFillScheme="const", const1=0.D0, rc=rc)
-          if (ESMF_STDERRORCHECK(rc)) return
-#ifdef CMEPS
+            ! zero out
+            call ESMF_FieldFill(expField(i), dataFillScheme="const", const1=0.D0, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
           end if
-#endif
+
           call NUOPC_Realize(exportState, field=expField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
           if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
@@ -1246,14 +1260,17 @@ module HYCOM_Mod
     enddo
 
     do i=1,numExpFields
-#ifdef CMEPS
-      if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
-#else
-      if (expFieldEnable(i)) then
-#endif
-        call do_export(i,expField(i),rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-      endif
+      if (trim(mediator_type) == "cmeps") then
+        if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
+          call do_export(i,expField(i),rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        end if
+      else
+        if (expFieldEnable(i)) then
+          call do_export(i,expField(i),rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        endif
+      end if
     enddo
 
     endtime=0
@@ -1269,18 +1286,18 @@ module HYCOM_Mod
     deallocate(tmp_c)
 #endif
 
-#ifdef CMEPS
-    ! set scalar data in export state
-    if (len_trim(scalar_field_name) > 0) then
-      call State_SetScalar(dble(itdmx),scalar_field_idx_grid_nx, exportState, lPet, &
-        scalar_field_name, scalar_field_count, rc)
-      if (ESMF_STDERRORCHECK(rc)) return
+    if (trim(mediator_type) == "cmeps") then
+      ! set scalar data in export state
+      if (len_trim(scalar_field_name) > 0) then
+        call State_SetScalar(dble(itdmx),scalar_field_idx_grid_nx, exportState, lPet, &
+          scalar_field_name, scalar_field_count, rc)
+        if (ESMF_STDERRORCHECK(rc)) return
 
-      call State_SetScalar(dble(jtdmx),scalar_field_idx_grid_ny, exportState, lPet, &
-        scalar_field_name, scalar_field_count, rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-    endif
-#endif
+        call State_SetScalar(dble(jtdmx),scalar_field_idx_grid_ny, exportState, lPet, &
+          scalar_field_name, scalar_field_count, rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+      endif
+    end if
 
     call hycom_couple_final(rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
@@ -1648,7 +1665,6 @@ module HYCOM_Mod
 
   !-----------------------------------------------------------------------------
 
-#ifdef CMEPS
   ! Set scalar data from state for a particula name
   subroutine State_SetScalar(value, scalar_id, State, mytask, scalar_name, scalar_count,  rc)
     real(ESMF_KIND_R8), intent(in)    :: value
@@ -1712,7 +1728,6 @@ module HYCOM_Mod
     if (ESMF_STDERRORCHECK(rc)) return
 
   end subroutine SetScalarField
-#endif
 
 #ifdef ESPC_COUPLE
   subroutine do_export(k,field,rc)

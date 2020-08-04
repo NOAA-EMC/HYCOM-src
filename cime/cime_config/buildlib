@@ -103,10 +103,7 @@ def buildlib(caseroot, libroot, bldroot):
         else:
             remove_files.append("hycom.F90")
             compatm = case.get_value("COMP_ATM")
-            if "datm" in compatm: 
-                os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE -DCMEPS -DDATM"
-            else:
-                os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE -DCMEPS"
+            os.environ["USER_CPPDEFS"] = " -DIA32 -DREAL8 -DMPI -DENDIAN_IO -DNAN2003 -DTIMER -DRELO -DEOS_SIG2 -DEOS_17T -DESPC_COUPLE"
 
         # Create command
         makefile = os.path.join(casetools, "Makefile")
