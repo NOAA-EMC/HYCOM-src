@@ -1853,4 +1853,57 @@
   </values>
 </entry>
 
+<!-- =========================== -->
+<!-- HYCOM-Tools partit -->
+<!-- =========================== -->
+
+<entry id="npe">
+  <type>integer</type>
+  <group>partit</group>
+  <desc>number of tiles in x direction</desc>
+  <values>
+    <value>20</value>
+  </values>
+</entry>
+
+<entry id="mpe">
+  <type>integer</type>
+  <group>partit</group>
+  <desc>number of tiles in y direction</desc>
+  <values>
+    <value>6</value>
+  </values>
+</entry>
+
+<entry id="sfudge">
+  <type>real</type>
+  <group>partit</group>
+  <desc>
+  size fudge factor (0.5 to 9.9, larger for more variation)
+  &lt; 1.0 to keep all  constant-sized tiles
+  &gt; 9.0 to shift     constant-sized tiles
+  &gt; 9.8 to double-up constant-sized tiles
+  </desc>
+  <values>
+    <value>0.75</value>
+  </values>
+</entry>
+
+<entry id="partit_exe">
+  <type>char</type>
+  <group>partit</group>
+  <desc>partit executable</desc>
+  <valid_values>partit,partit_arctic,partit_arctic_ns,partit_landsea,partit_mom6,partit_noshrink,partit_resize,partit_row1st,partit_test</valid_values>
+  <values>
+    <value>partit</value>
+  </values>
+</entry>
+
+<!-- =========================== -->
+<!-- hycom_settings -->
+<!-- =========================== -->
+
+
+
+
 </entry_id>
