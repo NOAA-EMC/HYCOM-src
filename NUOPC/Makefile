@@ -136,7 +136,6 @@ CAP_VERS      := VERSION
 CAP_OBJS      := HYCOM_OceanComp.o
 CAP_OBJS      += HYCOM_ESMF_Extensions.o
 CAP_OBJS      += hycom_couple.o
-CAP_OBJS      += ReadHycomLatLon.o
 CAP_OBJS      += read_impexp_config_mod.o
 CAP_OBJS      += impexpField_cdf_mod.o
 CAP_OBJS      += export_from_hycom_tiled.o
