@@ -74,10 +74,10 @@ dpudpv.o:  dpudpv.F90  mod_xc.o
 forfun.o:  forfun.F90  mod_xc.o mod_cb_arrays.o            mod_za.o
 geopar.o:  geopar.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h mod_za.o
 hybgen.o:  hybgen.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h          mod_pipe.o
-icloan.o:  icloan.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h
+icloan.o:  icloan.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h          mod_pipe.o
 inicon.o:  inicon.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h          mod_pipe.o \
                                                                     mod_restart.o
-inigiss.o: inigiss.F90 mod_xc.o mod_cb_arrays.o stmt_fns.h
+inigiss.o: inigiss.F90 mod_xc.o mod_cb_arrays.o stmt_fns.h          mod_pipe.o
 inikpp.o:  inikpp.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h
 inimy.o:   inimy.F90   mod_xc.o mod_cb_arrays.o stmt_fns.h
 isnan.o:   isnan.F90
@@ -95,7 +95,7 @@ poflat.o:  poflat.F90
 prtmsk.o:  prtmsk.F90
 psmoo.o:   psmoo.F90   mod_xc.o 
 s8gefs.o:  s8gefs.F90
-thermf.o:  thermf.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h
+thermf.o:  thermf.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h         mod_hycom.o
 trcupd.o:  trcupd.F90  mod_xc.o mod_cb_arrays.o                     mod_pipe.o
 wtime.o:   wtime.F90
 mod_hycom.o: \
@@ -137,7 +137,7 @@ mod_restart.o: \
 mod_tsadvc.o: \
 	mod_tsadvc.F90 mod_xc.o mod_cb_arrays.o stmt_fns.h          mod_pipe.o
 mod_incupd.o: \
-        mod_incupd.F90 mod_xc.o mod_cb_arrays.o            mod_za.o
+        mod_incupd.F90 mod_xc.o mod_cb_arrays.o            mod_za.o mod_pipe.o
 mod_floats.o: \
         mod_floats.F90 mod_xc.o mod_cb_arrays.o            mod_za.o mod_pipe.o \
 	                                                            mod_stokes.o
