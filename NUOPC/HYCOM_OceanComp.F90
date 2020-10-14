@@ -241,6 +241,8 @@ module HYCOM_Mod
       call ESMF_LogWrite('ScalarFieldName = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
     end if
 
+    call ESMF_LogWrite('MED = '//trim(mediator_type), ESMF_LOGMSG_INFO, rc=rc)
+
     ! Using data atmosphere or not?
     call NUOPC_CompAttributeGet(model, name="ATM_model", &
       isPresent=isPresent, isSet=isSet, rc=rc)
@@ -1529,9 +1531,16 @@ module HYCOM_Mod
 #endif
 
     do i=1,numExpFields
-      if (expFieldEnable(i)) then
-        call do_export(i,expField(i),rc)
-        if (ESMF_STDERRORCHECK(rc)) return
+      if (trim(mediator_type) == "cmeps") then
+        if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
+          call do_export(i,expField(i),rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        end if
+      else
+        if (expFieldEnable(i)) then
+          call do_export(i,expField(i),rc)
+          if (ESMF_STDERRORCHECK(rc)) return
+        endif
       endif
     enddo
 
