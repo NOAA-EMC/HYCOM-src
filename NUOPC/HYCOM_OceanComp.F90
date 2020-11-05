@@ -130,7 +130,7 @@ module HYCOM_Mod
 ! espc_timer(5): Run Phase Core
 ! espc_timer(6): Run Phase export
 #endif
-  real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20
+  real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20_ESMF_KIND_R8
 
 !===============================================================================
   contains
