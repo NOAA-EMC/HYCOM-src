@@ -735,6 +735,8 @@ module HYCOM_Mod
     type(ESMF_ArraySpec)            :: arraySpec2Dr
     real(ESMF_KIND_R8), allocatable :: tmp_e(:,:)
     real(ESMF_KIND_R8), allocatable :: tmp_c(:,:)
+    real(ESMF_KIND_R8), pointer     :: fldmsk_fptr(:,:)
+    integer(ESMF_KIND_I4), pointer  :: msk_fptr(:,:)
     logical                         :: isConnected
     integer                         :: status
 #endif
@@ -1157,6 +1159,24 @@ module HYCOM_Mod
           if (ESMF_STDERRORCHECK(rc)) return
           if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
             expFieldName(i)
+
+          if (expFieldName(i).eq."mask") then
+            nullify(msk_fptr)
+            nullify(fldmsk_fptr)
+            call ESMF_GridGetItem(gridOut, itemflag=ESMF_GRIDITEM_MASK, &
+              staggerLoc=ESMF_STAGGERLOC_CENTER, farrayPtr=msk_fptr, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            call ESMF_FieldGet(expField(i),farrayPtr=fldmsk_fptr,rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            if (size(fldmsk_fptr).eq.size(msk_fptr)) then
+              fldmsk_fptr(:,:) = msk_fptr(:,:)
+            else
+              call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+                msg="ERROR: Mask array sizes do not match.", &
+                CONTEXT, rcToReturn=rc)
+              return ! bail out
+            endif
+          endif
         else
           if (lPet.eq.0) print *,"hycom, export field disabled, name=", &
             expFieldName(i)
@@ -1170,7 +1190,7 @@ module HYCOM_Mod
     enddo
 
     do i=1,numExpFields
-      if (expFieldEnable(i)) then
+      if (expFieldEnable(i).AND.(expFieldName(i).ne."mask")) then
         call do_export(i,expField(i),rc)
         if (ESMF_STDERRORCHECK(rc)) return
       endif
@@ -1419,7 +1439,7 @@ module HYCOM_Mod
 #endif
 
     do i=1,numExpFields
-      if (expFieldEnable(i)) then
+      if (expFieldEnable(i).AND.(expFieldName(i).ne."mask")) then
         call do_export(i,expField(i),rc)
         if (ESMF_STDERRORCHECK(rc)) return
       endif
@@ -1686,6 +1706,9 @@ module HYCOM_Mod
 
     if (allocated(mergeData)) deallocate(mergeData)
     if (allocated(impData)) deallocate(impData)
+
+    ! Reset Import Field
+    field_data = fillValue
 
     rc = ESMF_SUCCESS
 
