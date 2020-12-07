@@ -136,7 +136,7 @@ module HYCOM_Mod
 ! espc_timer(5): Run Phase Core
 ! espc_timer(6): Run Phase export
 #endif
-  real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20
+  real(ESMF_KIND_R8),parameter :: fillValue = 9.99e20_ESMF_KIND_R8
 
 !===============================================================================
   contains
@@ -254,7 +254,7 @@ module HYCOM_Mod
     end if
 
     ! Retrieve CMEPS specific attributes
-    if (trim(mediator_type) == "cmeps") then
+    if (trim(mediator_type) .eq. "cmeps") then
       scalar_field_count = 0
       call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", value=value, &
         isPresent=isPresent, isSet=isSet, rc=rc)
@@ -817,6 +817,8 @@ module HYCOM_Mod
     type(ESMF_ArraySpec)            :: arraySpec2Dr
     real(ESMF_KIND_R8), allocatable :: tmp_e(:,:)
     real(ESMF_KIND_R8), allocatable :: tmp_c(:,:)
+    real(ESMF_KIND_R8), pointer     :: fldmsk_fptr(:,:)
+    integer(ESMF_KIND_I4), pointer  :: msk_fptr(:,:)
     logical                         :: isConnected
     integer                         :: status
 #endif
@@ -1230,8 +1232,8 @@ module HYCOM_Mod
           if (lPet.eq.0) print *,"hycom, export field created, name=", &
             expFieldName(i)
 
-          if ((trim(mediator_type) == "cmeps") .and. &
-              (trim(expFieldName(i)) == trim(scalar_field_name))) then
+          if ((trim(mediator_type) .eq. "cmeps") .and. &
+              (trim(expFieldName(i)) .eq. trim(scalar_field_name))) then
               call SetScalarField(expField(i), rc)
               if (ESMF_STDERRORCHECK(rc)) return
           else
@@ -1249,6 +1251,24 @@ module HYCOM_Mod
           if (ESMF_STDERRORCHECK(rc)) return
           if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
             expFieldName(i)
+
+          if (expFieldName(i).eq."mask") then
+            nullify(msk_fptr)
+            nullify(fldmsk_fptr)
+            call ESMF_GridGetItem(gridOut, itemflag=ESMF_GRIDITEM_MASK, &
+              staggerLoc=ESMF_STAGGERLOC_CENTER, farrayPtr=msk_fptr, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            call ESMF_FieldGet(expField(i),farrayPtr=fldmsk_fptr,rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            if (size(fldmsk_fptr).eq.size(msk_fptr)) then
+              fldmsk_fptr(:,:) = msk_fptr(:,:)
+            else
+              call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+                msg="ERROR: Mask array sizes do not match.", &
+                CONTEXT, rcToReturn=rc)
+              return ! bail out
+            endif
+          endif
         else
           if (lPet.eq.0) print *,"hycom, export field disabled, name=", &
             expFieldName(i)
@@ -1263,7 +1283,9 @@ module HYCOM_Mod
 
     do i=1,numExpFields
       if (trim(mediator_type) == "cmeps") then
-        if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
+        if (expFieldEnable(i) .and. &
+           (trim(expFieldName(i)) .ne.trim(scalar_field_name)) .and. &
+           (trim(expFieldName(i)) .ne. "mask")) then
           call do_export(i,expField(i),rc)
           if (ESMF_STDERRORCHECK(rc)) return
         end if
@@ -1532,7 +1554,9 @@ module HYCOM_Mod
 
     do i=1,numExpFields
       if (trim(mediator_type) == "cmeps") then
-        if (expFieldEnable(i) .and. (trim(expFieldName(i)) /= trim(scalar_field_name))) then
+        if (expFieldEnable(i) .and. &
+           (trim(expFieldName(i)) .ne. trim(scalar_field_name)) .and. &
+           (trim(expFieldName(i)) .ne. "mask")) then
           call do_export(i,expField(i),rc)
           if (ESMF_STDERRORCHECK(rc)) return
         end if
@@ -1869,6 +1893,9 @@ module HYCOM_Mod
 
     if (allocated(mergeData)) deallocate(mergeData)
     if (allocated(impData)) deallocate(impData)
+
+    ! Reset Import Field
+    field_data = fillValue
 
     rc = ESMF_SUCCESS
 
