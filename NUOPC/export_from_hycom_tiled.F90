@@ -27,9 +27,11 @@
 
 !==>  export to atm,ice
       if(fieldName .eq. 'sst' ) then
-        do j=1,jj
+        do j=1,jja
         do i= 1,ii
+          if (ishlf(i,j).eq.1) then
             tmx(i,j) = 0.5*(temp(i,j,1,1)+temp(i,j,1,2))
+          end if
         enddo
         enddo
 !==>  export to med

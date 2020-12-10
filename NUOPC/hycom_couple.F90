@@ -391,17 +391,19 @@ module hycom_couple
     jja=jj
 #endif
 
+#ifndef ESPC_NOCANONICAL_CONVERT
 !   export unit conversions
     if (fieldName.eq.'sst') then
-      do j=1, jj
+      do j=1, jja
       do i=1, ii
-#ifndef ESPC_NOCANONICAL_CONVERT
-!       canonical unit conversion: sst (C) -> (K)
-        util2(i,j)=util2(i,j)+273.15d0
-#endif
+        if (ishlf(i,j).eq.1) then
+!         canonical unit conversion: sst (C) -> (K)
+          util2(i,j)=util2(i,j)+273.15d0
+        end if
       enddo
       enddo
     endif
+#endif
 
 !   copy internal data to export array
     expData(:,:)=0.0
