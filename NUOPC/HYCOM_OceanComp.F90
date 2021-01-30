@@ -294,10 +294,10 @@ module HYCOM_Mod
         end if
         call ESMF_LogWrite('ScalarFieldIdxGridNY = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
       end if
-
-      ! Set import/export field list
-      call set_impexp_fields()
     end if
+
+    ! Set import/export field list
+    call set_impexp_fields()
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
