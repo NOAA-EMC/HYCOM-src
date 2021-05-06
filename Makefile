@@ -20,13 +20,13 @@ MODS =   mod_dimensions.o mod_xc.o mod_za.o mod_cb_arrays.o mod_pipe.o \
          mod_incupd.o \
          mod_floats.o mod_stokes.o mod_tides.o mod_mean.o mod_archiv.o \
          mod_tsadvc.o mod_momtum.o mod_barotp.o mod_asselin.o mod_restart.o\
-         mod_hycom.o
+         mod_import.o mod_hycom.o
 
 MODD =   mod_dimensions.o mod_xc.o mod_za.o mod_cb_arrays.o mod_pipe.o \
          mod_incupd.o \
          mod_floats.o mod_stokes.o mod_tides.o mod_mean.o mod_archiv.o \
          mod_tsadvc.o mod_momtum.o mod_barotp.o mod_asselin.o mod_restart.o\
-         mod_hycom_dummy.o
+         mod_import.o mod_hycom_dummy.o
 
 OBJS =	                   bigrid.o blkdat.o  cnuity.o convec.o \
 	diapfl.o dpthuv.o  dpudpv.o forfun.o  geopar.o hybgen.o \
@@ -98,6 +98,8 @@ s8gefs.o:  s8gefs.F90
 thermf.o:  thermf.F90  mod_xc.o mod_cb_arrays.o stmt_fns.h         mod_hycom.o
 trcupd.o:  trcupd.F90  mod_xc.o mod_cb_arrays.o                     mod_pipe.o
 wtime.o:   wtime.F90
+mod_import.o: \
+        mod_xc.o mod_cb_arrays.o
 mod_hycom.o: \
         mod_hycom.F90  mod_xc.o mod_cb_arrays.o            mod_za.o mod_pipe.o \
 	                                                            mod_incupd.o \
@@ -108,7 +110,8 @@ mod_hycom.o: \
 	                                                            mod_barotp.o \
 	                                                            mod_asselin.o \
                                                                     mod_restart.o \
-	                                                            mod_stokes.o
+	                                                            mod_stokes.o \
+                                                                    mod_import.o
 mod_hycom_dummy.o: \
         mod_hycom_dummy.F90  mod_xc.o mod_cb_arrays.o      mod_za.o mod_pipe.o \
 	                                                            mod_incupd.o \
@@ -119,7 +122,8 @@ mod_hycom_dummy.o: \
 	                                                            mod_barotp.o \
 	                                                            mod_asselin.o \
                                                                     mod_restart.o \
-	                                                            mod_stokes.o
+	                                                            mod_stokes.o \
+                                                                    mod_import.o
 mod_asselin.o: \
 	mod_asselin.F90 mod_xc.o mod_cb_arrays.o stmt_fns.h         mod_pipe.o
 mod_barotp.o: \

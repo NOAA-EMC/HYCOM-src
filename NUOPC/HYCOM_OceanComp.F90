@@ -67,6 +67,7 @@ module HYCOM_Mod
                           import_to_hycom_deb, &
                           ocn_import_forcing, &
                           hycom_couple_final
+  use mod_import, only: hycom_imp_reset
   use mod_hycom, only: scalar_field_name, &
                        scalar_field_count, &
                        scalar_field_idx_grid_nx, &
@@ -1457,15 +1458,27 @@ module HYCOM_Mod
     if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
+!   reset set import field mask
+    call hycom_imp_reset(.false.)
     if (skip_first_import) then
       skip_first_import=.false.
     else
+!     transform and copy each field to internal import arrays
+!     data will be copied from import arrays to hycom after
+!     forcing data is read
       do i=1,numImpFields
         if (impFieldEnable(i)) then
-          call do_import(i,impField(i),.false.,currtimeString,diagnostic,rc=rc)
+          call do_import(i,impField(i),diagnostic,rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         endif
       enddo
+!     calculate radflx and wndspd
+      call ocn_import_forcing(fillValue, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+
+!     arche file of fields exchanged with ice component
+      if (hycom_arche_output .and. begtime.eq.0) &
+        call archiv_exchange  !arche file of fields exchanged with ice component
     endif
 
 #ifdef ESPC_TIMER
@@ -1478,17 +1491,6 @@ module HYCOM_Mod
     espc_timer(4)=espc_timer(4)+timer_tmp_end-timer_tmp_beg
     call print_timer_stat('hycom, Run(Import):',timer_tmp_end-timer_tmp_beg, &
       lPet,nPets,vm,rc)
-#endif
-
-!   call redef_radflx()
-
-!ajw
-!move to mod_hycom.F
-#ifdef ESPC_COUPLE
-    call ocn_import_forcing(rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-    if (hycom_arche_output .and. begtime.eq.0) &
-      call archiv_exchange  !arche file of fields exchanged with ice component
 #endif
 #endif
 
@@ -1814,12 +1816,10 @@ module HYCOM_Mod
 
   !-----------------------------------------------------------------------------
 
-  subroutine do_import(k,field,data_init_flag,currtimeString,diagnostic,rc)
+  subroutine do_import(k,field,diagnostic,rc)
 !   arguments
     integer, intent(in)          :: k
     type(ESMF_Field), intent(in) :: field
-    logical,intent(in)           :: data_init_flag
-    character(*),intent(in)      :: currtimeString
     integer,intent(in)           :: diagnostic
     integer,intent(out)          :: rc
 !   local variables
@@ -1827,7 +1827,6 @@ module HYCOM_Mod
     character(*), parameter     :: rname="do_import"
     integer                     :: i, j
     real*8, allocatable         :: impData(:,:)
-    logical, allocatable        :: mergeData(:,:)
     real(ESMF_KIND_RX), pointer :: field_data(:,:)
     integer                     :: tlb(2), tub(2)
     integer                     :: status
@@ -1849,44 +1848,18 @@ module HYCOM_Mod
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
     allocate(impData(tlb(1):tub(1),tlb(2):tub(2)))
-    allocate(mergeData(tlb(1):tub(1),tlb(2):tub(2)))
     impData(:,:)=0.0
-    mergeData(:,:)=.false.
-    if (merge_import) then
-      do j = tlb(2),tub(2)
-      do i = tlb(1),tub(1)
-        impData(i,j)=field_data(i,j)
-        mergeData(i,j)=impData(i,j).eq.fillValue
-      enddo
-      enddo
-    else
-      do j = tlb(2),tub(2)
-      do i = tlb(1),tub(1)
-        impData(i,j)=field_data(i,j)
-      enddo
-      enddo
-    endif
+    do j = tlb(2),tub(2)
+    do i = tlb(1),tub(1)
+      impData(i,j)=field_data(i,j)
+    enddo
+    enddo
 
-    call import_to_hycom_deb(tlb,tub,impData,fieldName,show_minmax, &
-      data_init_flag, mergeData, rc=rc)
+    call import_to_hycom_deb(tlb,tub,impData,fillValue,fieldName,show_minmax, &
+      rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
 
-    ! write post merge import data to NetCDF file.
-    if (btest(diagnostic,16)) then
-      call ESMF_FieldGet(field, grid=grid, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      dbgField = ESMF_FieldCreate(grid=grid, indexflag=ESMF_INDEX_GLOBAL, &
-        farray=impData, name=fieldName, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      call ESMF_FieldWrite(dbgField, fileName='merge_'//trim(fieldName)//'_'// &
-        trim(currtimeString)//'.nc', rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      call ESMF_FieldDestroy(dbgField, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-    endif
-
-    if (allocated(mergeData)) deallocate(mergeData)
     if (allocated(impData)) deallocate(impData)
 
     ! Reset Import Field

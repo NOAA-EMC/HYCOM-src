@@ -468,20 +468,20 @@ module hycom_couple
 
   !-----------------------------------------------------------------------------
 
-  subroutine import_to_hycom_deb(tlb, tub, impData, fieldName, show_minmax, &
-    data_init_flag, mergeData, rc)
+  subroutine import_to_hycom_deb(tlb, tub, impData, fill_value, fieldName, &
+    show_minmax, rc)
 !   arguments
     integer, intent(in)           :: tlb(2), tub(2)
-    real, intent(inout)           :: impData(tlb(1):tub(1),tlb(2):tub(2))
+    real*8, intent(inout)         :: impData(tlb(1):tub(1),tlb(2):tub(2))
+    real*8, intent(in)            :: fill_value
     character(len=30), intent(in) :: fieldName
     logical, intent(in)           :: show_minmax
-    logical, intent(in)           :: data_init_flag
-    logical, intent(in)           :: mergeData(tlb(1):tub(1),tlb(2):tub(2))
     integer, intent(out)          :: rc
 !   local variables
     character(*), parameter :: rname="import_to_hycom_deb"
     integer                 :: i, j, mcnt
     real                    :: uij, vij
+    logical, allocatable    :: diag_msk(:,:)
     real, allocatable       :: ocn_msk(:,:)
     real, allocatable       :: field_tmp(:,:)
     real, allocatable       :: tmx(:,:)
@@ -509,130 +509,123 @@ module hycom_couple
 #endif
 
 !   -----------------
+!    set import flag
+!   -----------------
+    if (.not.cpl_merge) then
+      do j=1, jja
+      do i=1, ii
+        imp_merge(i,j,l0) = impData(i+i0,j+j0).ne.fill_value
+      enddo
+      enddo
+      cpl_merge = .true.
+    endif
+! TBD: implement xctila xtilr for logical variables
+#if defined(ARCTIC)
+!      call xctila(imp_merge(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+#endif
+!      call xctilr(imp_merge(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+
+!   -----------------
 !    import from atm
 !   -----------------
 !   import xstress: Pa
     if (fieldName.eq.'taux10') then
       do j=1, jja
       do i=1, ii
-!       taux(i,j,l0)=mgrid(i,j)
+!       imp_taux(i,j,l0)=mgrid(i,j)
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!            wind cannot be rotated
-!            impData(i+i0,j+j0)=taux(i,j,l0)
-             impData(i+i0,j+j0)=0.0
-          else
-            taux(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_taux(i,j,l0)=impData(i+i0,j+j0)
         else
-          taux(i,j,l0)=0.0
+          imp_taux(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import ystress: Pa
     elseif (fieldName.eq.'tauy10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           wind cannot be rotated
-!           impData(i+i0,j+j0)=tauy(i,j,l0)
-            impData(i+i0,j+j0)=0.0
-          else
-            tauy(i,j,l0)=impData(i+i0,j+j0)
+          imp_tauy(i,j,l0)=impData(i+i0,j+j0)
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           rotate taux and tauy to (x,y)ward
 !           assumes rotation only needed for impData
-            uij=taux(i,j,l0)
-            vij=tauy(i,j,l0)
-            taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-            tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+            uij=imp_taux(i,j,l0)
+            vij=imp_tauy(i,j,l0)
+            imp_taux(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+            imp_tauy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
           endif
         else
-          tauy(i,j,l0)=0.0
+          imp_tauy(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
-      call xctila(tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-      call xctilr(tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import u wind at 10m height: ms-1
     elseif (fieldName.eq.'u10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           wind cannot be rotated
-!           impData(i+i0,j+j0)=wndspx(i,j,l0)
-            impData(i+i0,j+j0)=0.0
-          else
-            wndspx(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_wndspx(i,j,l0)=impData(i+i0,j+j0)
         else
-          wndspx(i,j,l0)=0.0
+          imp_wndspx(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import v wind at 10m height: ms-1
     elseif (fieldName.eq.'v10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           wind cannot be rotated
-!           impData(i+i0,j+j0)=wndspy(i,j,l0)
-            impData(i+i0,j+j0)=0.0
-          else
-            wndspy(i,j,l0)=impData(i+i0,j+j0)
+          imp_wndspy(i,j,l0)=impData(i+i0,j+j0)
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           rotate u and v to (x,y)ward
 !           assumes rotation only needed for impData
-            uij=wndspx(i,j,l0)
-            vij=wndspy(i,j,l0)
-            wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
-            wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
+            uij=imp_wndspx(i,j,l0)
+            vij=imp_wndspy(i,j,l0)
+            imp_wndspx(i,j,l0)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
+            imp_wndspy(i,j,l0)=cos(pang(i,j))*vij - sin(pang(i,j))*uij
           endif
         else
-          wndspy(i,j,l0)=0.0
+          imp_wndspy(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
-      call xctila(wndspy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_wndspy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
 #endif
-      call xctilr(wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-      call xctilr(wndspy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_wndspy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
 !   -----------------
 !   import wind speed: m s-1
     elseif (fieldName.eq.'wndspd10') then
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=wndspd(i,j,l0)
-          else
-            wndspd(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_wndspd(i,j,l0)=impData(i+i0,j+j0)
         else
-          wndspd(i,j,l0)=0.0
+          imp_wndspd(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import friction speed: m s-1
@@ -640,18 +633,14 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=ustara(i,j,l0)
-          else
-            ustara(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_ustara(i,j,l0)=impData(i+i0,j+j0)
         else
-          ustara(i,j,l0)=0.0
+          imp_ustara(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import air temperature
@@ -659,20 +648,19 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           canonical unit conversion: airtmp (C) -> (K)
-            impData(i+i0,j+j0)=airtmp(i,j,l0)+273.15
-          else
+          if(impData(i+i0,j+j0).ne.fill_value) then
 !           canonical unit conversion: airtmp (K) -> (C)
-            airtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+            imp_airtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          else
+            imp_airtmp(i,j,l0)=impData(i+i0,j+j0)
           endif
         else
-          airtmp(i,j,l0)=0.0
+          imp_airtmp(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import specific humidity: kg kg-1
@@ -681,15 +669,14 @@ module hycom_couple
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-            if (mergeData(i+i0,j+j0)) then
-!             convert from mixing ratio to specific humidity
-              impData(i+i0,j+j0)=vapmix(i,j,l0)/(1.+vapmix(i,j,l0))
-            else
+            if (impData(i+i0,j+j0).ne.fill_value) then
 !             convert from specific humidity to mixing ratio
-              vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+              imp_vapmix(i,j,l0)=impData(i+i0,j+j0)/(1.-impData(i+i0,j+j0))
+            else
+              imp_vapmix(i,j,l0)=impData(i+i0,j+j0)
             endif
           else
-            vapmix(i,j,l0)=0.01
+            imp_vapmix(i,j,l0)=0.01
           endif
         enddo
         enddo
@@ -697,19 +684,15 @@ module hycom_couple
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-            if (mergeData(i+i0,j+j0)) then
-              impData(i+i0,j+j0)=vapmix(i,j,l0)
-            else
-              vapmix(i,j,l0)=impData(i+i0,j+j0)
-            endif
+            imp_vapmix(i,j,l0)=impData(i+i0,j+j0)
           else
-            vapmix(i,j,l0)=0.01
+            imp_vapmix(i,j,l0)=0.01
           endif
         enddo
         enddo
       endif
 #if defined(ARCTIC)
-      call xctila(vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import sw flux: w m-2
@@ -717,18 +700,14 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=swflx(i,j,l0)
-          else
-            swflx(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_swflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          swflx(i,j,l0)=0.0
+          imp_swflx(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import downward sw flux: w m-2
@@ -742,13 +721,13 @@ module hycom_couple
           do j=1, jja
           do i=1, ii
             if (ishlf(i,j).eq.1) then
-              if (mergeData(i+i0,j+j0)) then
-                impData(i+i0,j+j0)=swflx(i,j,l0)/(1.0-0.09) !NAVGEM albedo
+              if (impData(i+i0,j+j0).ne.fill_value) then
+                imp_swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-0.09) !NAVGEM albedo
               else
-                swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-0.09) !NAVGEM albedo
+                imp_swflx(i,j,l0)=impData(i+i0,j+j0)
               endif
             else
-              swflx(i,j,l0)=0.0
+              imp_swflx(i,j,l0)=0.0
             endif
           enddo
           enddo
@@ -757,19 +736,16 @@ module hycom_couple
           do j=1, jja
           do i=1, ii
             if (ishlf(i,j).eq.1) then
-              if (mergeData(i+i0,j+j0)) then
+              if (impData(i+i0,j+j0).ne.fill_value) then
 !               latitudinally-varying ocean albedo (Large and Yeager, 2009)
 !               5.8% at the equator and 8% at the poles
                 albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
-                impData(i+i0,j+j0)=swflx(i,j,l0)/(1.0-albw)
+                imp_swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-albw)
               else
-!               latitudinally-varying ocean albedo (Large and Yeager, 2009)
-!               5.8% at the equator and 8% at the poles
-                albw=(0.069-0.011*cos(2.0*degtorad*plat(i,j)))
-                swflx(i,j,l0)=impData(i+i0,j+j0)*(1.0-albw)
+                imp_swflx(i,j,l0)=impData(i+i0,j+j0)
               endif
             else
-              swflx(i,j,l0)=0.0
+              imp_swflx(i,j,l0)=0.0
             endif
           enddo
           enddo
@@ -778,19 +754,15 @@ module hycom_couple
         do j=1, jja
         do i=1, ii
           if (ishlf(i,j).eq.1) then
-            if (mergeData(i+i0,j+j0)) then
-              impData(i+i0,j+j0)=swflx(i,j,l0)
-            else
-              swflx(i,j,l0)=impData(i+i0,j+j0)
-            endif
+            imp_swflx(i,j,l0)=impData(i+i0,j+j0)
           else
-            swflx(i,j,l0)=0.0
+            imp_swflx(i,j,l0)=0.0
           endif
         enddo
         enddo
       endif !albflg
 #if defined(ARCTIC)
-      call xctila(swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import lw flux: w m-2
@@ -798,20 +770,19 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           canonical unit conversion: lwflx_net (downward) -> (upward)
-            impData(i+i0,j+j0)=lwflx(i,j,l0)/(-1.)
-          else
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           canonical unit conversion: lwflx_net (upward) -> (downward)
-            lwflx(i,j,l0)=impData(i+i0,j+j0)*(-1.)
+            imp_lwdflx(i,j,l0)=impData(i+i0,j+j0)*(-1.)
+          else
+            imp_lwdflx(i,j,l0)=impData(i+i0,j+j0)
           endif
         else
-          lwflx(i,j,l0)=0.0
+          imp_lwdflx(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_lwdflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import downward lw flux: w m-2
@@ -821,18 +792,14 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=lwflx(i,j,l0)
-          else
-            lwflx(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_lwdflx(i,j,l0)=impData(i+i0,j+j0)
         else
-          lwflx(i,j,l0)=0.0
+          imp_lwdflx(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(lwflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_lwdflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
 !   -----------------
 !   import precip: m s-1
@@ -840,15 +807,14 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           canonical unit conversion: prcp (m_s-1) -> (kg_m-2_s-1)
-            impData(i+i0,j+j0)=precip(i,j,l0)/(0.001)
-          else
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           canonical unit conversion: prcp (kg_m-2_s-1) -> (m_s-1)
-            precip(i,j,l0)=impData(i+i0,j+j0)*(0.001)
+            imp_precip(i,j,l0)=impData(i+i0,j+j0)*(0.001)
+          else
+            imp_precip(i,j,l0)=impData(i+i0,j+j0)
           endif
         else
-          precip(i,j,l0)=0.0
+          imp_precip(i,j,l0)=0.0
         endif
       enddo
       enddo
@@ -861,29 +827,28 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           canonical unit conversion: gt (C) -> (K)
-            impData(i+i0,j+j0)=surtmp(i,j,l0)+273.15
-          else
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           canonical unit conversion: gt (K) -> (C)
-            surtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+            imp_surtmp(i,j,l0)=impData(i+i0,j+j0)-273.15
+          else
+            imp_surtmp(i,j,l0)=impData(i+i0,j+j0)
           endif
         else
-          surtmp(i,j,l0)=0.0
+          imp_surtmp(i,j,l0)=0.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
       if (sstflg.ne.3) then !use atmos sst as "truth"
         do j=1, jja
         do i=1, ii
-          seatmp(i,j,l0)=max(sstmin,min(surtmp(i,j,l0),sstmax))
+          imp_seatmp(i,j,l0)=max(sstmin,min(imp_surtmp(i,j,l0),sstmax))
         enddo
         enddo
 #if defined(ARCTIC)
-        call xctila(seatmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+        call xctila(imp_seatmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
       endif
 !   -----------------
@@ -892,20 +857,16 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=mslprs(i,j,l0)
-          else
-            mslprs(i,j,l0)=impData(i+i0,j+j0)
-          endif
+          imp_mslprs(i,j,l0)=impData(i+i0,j+j0)
         else
-          mslprs(i,j,l0)=1000.0
+          imp_mslprs(i,j,l0)=1000.0
         endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(mslprs(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_mslprs(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
-      call xctilr(mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
+      call xctilr(imp_mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
 !   ---------------------
 !    import from sea ice
 !   ---------------------
@@ -914,11 +875,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sic_import(i,j)
-          else
-            sic_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sic_import(i,j)=impData(i+i0,j+j0)
         else
           sic_import(i,j)=0.0
         endif
@@ -933,11 +890,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sitx_import(i,j)
-          else
-            sitx_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sitx_import(i,j)=impData(i+i0,j+j0)
         else
           sitx_import(i,j)=0.0
         endif
@@ -952,11 +905,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sity_import(i,j)
-          else
-            sity_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sity_import(i,j)=impData(i+i0,j+j0)
         else
           sity_import(i,j)=0.0
         endif
@@ -971,11 +920,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=siqs_import(i,j)
-          else
-            siqs_import(i,j)=impData(i+i0,j+j0)
-          endif
+          siqs_import(i,j)=impData(i+i0,j+j0)
         else
           siqs_import(i,j)=0.0
         endif
@@ -990,11 +935,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sifh_import(i,j)
-          else
-            sifh_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sifh_import(i,j)=impData(i+i0,j+j0)
         else
           sifh_import(i,j)=0.0
         endif
@@ -1009,11 +950,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sifs_import(i,j)
-          else
-            sifs_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sifs_import(i,j)=impData(i+i0,j+j0)
         else
           sifs_import(i,j)=0.0
         endif
@@ -1028,11 +965,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sifw_import(i,j)
-          else
-            sifw_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sifw_import(i,j)=impData(i+i0,j+j0)
         else
           sifw_import(i,j)=0.0
         endif
@@ -1048,12 +981,11 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           canonical unit conversion: sit_sfc (C) -> (K)
-            impData(i+i0,j+j0)=sit_import(i,j)+273.15
-          else
+          if (impData(i+i0,j+j0).ne.fill_value) then
 !           canonical unit conversion: sit_sfc (K) -> (C)
             sit_import(i,j)=impData(i+i0,j+j0)-273.15
+          else
+            sit_import(i,j)=impData(i+i0,j+j0)
           endif
         else
           sit_import(i,j)=0.0
@@ -1064,11 +996,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sit_import(i,j)
-          else
-            sit_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sit_import(i,j)=impData(i+i0,j+j0)
         else
           sit_import(i,j)=0.0
         endif
@@ -1084,11 +1012,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=sih_import(i,j)
-          else
-            sih_import(i,j)=impData(i+i0,j+j0)
-          endif
+          sih_import(i,j)=impData(i+i0,j+j0)
         else
           sih_import(i,j)=0.0
         endif
@@ -1103,13 +1027,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           wind cannot be rotated
-!           impData(i+i0,j+j0)=siu_import(i,j)
-            impData(i+i0,j+j0)=0.0
-          else
-            siu_import(i,j)=impData(i+i0,j+j0)
-          endif
+          siu_import(i,j)=impData(i+i0,j+j0)
         else
           siu_import(i,j)=0.0
         endif
@@ -1122,14 +1040,10 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-!           wind cannot be rotated
-!           impData(i+i0,j+j0)=siv_import(i,j)
-            impData(i+i0,j+j0)=0.0
-          else
-            siv_import(i,j)=impData(i+i0,j+j0)
-!           rotate siu and siv to (x,y)ward
-!           assumes rotation only needed for impData
+          siv_import(i,j)=impData(i+i0,j+j0)
+!         rotate siu and siv to (x,y)ward
+!         assumes rotation only needed for impData
+          if (impData(i+i0,j+j0).ne.fill_value) then
             uij=siu_import(i,j)
             vij=siv_import(i,j)
             siu_import(i,j)=cos(pang(i,j))*uij + sin(pang(i,j))*vij
@@ -1144,11 +1058,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          if (mergeData(i+i0,j+j0)) then
-            impData(i+i0,j+j0)=siv_import(i,j)
-          else
-            siv_import(i,j)=impData(i+i0,j+j0)
-          endif
+          siv_import(i,j)=impData(i+i0,j+j0)
         else
           siv_import(i,j)=0.0
         endif
@@ -1167,9 +1077,11 @@ module hycom_couple
     if (show_minmax) then
 !     allocate memory
       if (mnproc.eq.1) then
+        allocate(diag_msk(itdm,jtdm))
         allocate(ocn_msk(itdm,jtdm))
         allocate(field_tmp(itdm,jtdm))
       else
+        allocate(diag_msk(1,1))
         allocate(ocn_msk(1,1))
         allocate(field_tmp(1,1))
       endif
@@ -1200,14 +1112,16 @@ module hycom_couple
 
 !     write minmax to stdout
       if (mnproc.eq.1) then
+        diag_msk=((ocn_msk.eq.1).AND.(field_tmp.ne.fill_value))
         write(*,992) trim(fieldName),          &
-          maxval(field_tmp,mask=ocn_msk.eq.1), &
-          minval(field_tmp,mask=ocn_msk.eq.1), &
-          (sum(field_tmp,mask=ocn_msk.eq.1)/count(ocn_msk.eq.1))
+          maxval(field_tmp,mask=diag_msk), &
+          minval(field_tmp,mask=diag_msk), &
+          (sum(field_tmp,mask=diag_msk)/count(diag_msk))
  992    format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
       endif
 
 !     deallocate memory
+      if (allocated(diag_msk)) deallocate(diag_msk)
       if (allocated(ocn_msk)) deallocate(ocn_msk)
       if (allocated(field_tmp)) deallocate(field_tmp)
       if (allocated(tmx)) deallocate(tmx)
@@ -1219,8 +1133,9 @@ module hycom_couple
 
   !-----------------------------------------------------------------------------
 
-  subroutine ocn_import_forcing(rc)
+  subroutine ocn_import_forcing(fill_value,rc)
 !   arguments
+    real, intent(in)     :: fill_value
     integer, intent(out) :: rc
 !   local variables
     character(*), parameter :: rname="ocn_import_forcing"
@@ -1237,17 +1152,23 @@ module hycom_couple
     jja=jj
 #endif
 !   -----------------
-!   calculate radflx
+!   calculate imp_radflx
     if (lwflag.eq.2) then
       if (mnproc.eq.1) print *, rname//" calculating radflx..."
+      calc_radflx=.true.
       do j=1, jja
       do i=1, ii
-!       radflx is defined as net lwflx+swflx, +ve into ocean
-        radflx(i,j,l0)=lwflx(i,j,l0)+swflx(i,j,l0)
+        if ((imp_lwdflx(i,j,l0).ne.fill_value).and. &
+            (imp_swflx(i,j,l0).ne.fill_value)) then
+!         imp_radflx is defined as net lwdflx+swflx, +ve into ocean
+          imp_radflx(i,j,l0)=imp_lwdflx(i,j,l0)+imp_swflx(i,j,l0)
+        else
+          imp_radflx(i,j,l0)=fill_value
+        endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
     else
       if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
@@ -1255,144 +1176,25 @@ module hycom_couple
              stop '('//rname//')'
     endif
 !   -----------------
-!   calculate wndspd
+!   calculate imp_wndspd
     if (cpl_u10.and.cpl_v10.and.(.not.cpl_wndspd)) then
       if (mnproc.eq.1) print *, rname//" calculating wndspd..."
+      calc_wndspd=.true.
       do j=1, jja
       do i=1, ii
-!       wndspd based on u and v components
-        wndspd(i,j,l0)=sqrt((wndspx(i,j,l0)**2)+(wndspy(i,j,l0)**2))
+        if ((imp_wndspx(i,j,l0).ne.fill_value).and. &
+            (imp_wndspy(i,j,l0).ne.fill_value)) then
+!         imp_wndspd based on u and v components
+          imp_wndspd(i,j,l0)=sqrt((imp_wndspx(i,j,l0)**2)+(imp_wndspy(i,j,l0)**2))
+        else
+          imp_wndspd(i,j,l0)=fill_value
+        endif
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
     endif
-
-!   check CICE feedback
-    if ((.not.cpl_sic) .or.(.not.cpl_sitx).or.(.not.cpl_sity).or. &
-        (.not.cpl_siqs).or.(.not.cpl_sifh).or.(.not.cpl_sifs).or. &
-        (.not.cpl_sifw).or.(.not.cpl_sit) .or.(.not.cpl_sih) .or. &
-        (.not.cpl_siu) .or.(.not.cpl_siv)) then
-      if (mnproc.eq.1) print *, &
-        'warning... no feedback from CICE to HYCOM('//rname//')'
-    else
-!     copy import data to sea ice
-      do j=1, jja
-      do i=1, ii
-        if (ishlf(i,j).eq.1) then !standard ocean point
-          if ((iceflg.ge.2).and.(icmflg.ne.3)) then
-            covice(i,j)=sic_import(i,j) !Sea Ice Concentration
-            si_c(i,j)=sic_import(i,j) !Sea Ice Concentration
-            if (covice(i,j).gt.0.0) then
-               si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-               si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-              fswice(i,j) =  siqs_import(i,j) !Solar Heat Flux thru Ice to Ocean
-              flxice(i,j) =  fswice(i,j) + &
-                             sifh_import(i,j) !Ice Freezing/Melting Heat Flux
-              sflice(i,j) =  sifs_import(i,j)*1.e3 !Ice Salt Flux
-              wflice(i,j) =  sifw_import(i,j) !Ice freshwater Flux
-              temice(i,j) =   sit_import(i,j) !Sea Ice Temperature
-                si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-              thkice(i,j) =   sih_import(i,j) !Sea Ice Thickness
-                si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-                si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-                si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-            else
-               si_tx(i,j) = 0.0
-               si_ty(i,j) = 0.0
-              fswice(i,j) = 0.0
-              flxice(i,j) = 0.0
-              sflice(i,j) = 0.0
-              wflice(i,j) = 0.0
-              temice(i,j) = 0.0
-                si_t(i,j) = 0.0
-              thkice(i,j) = 0.0
-                si_h(i,j) = 0.0
-                si_u(i,j) = 0.0
-                si_v(i,j) = 0.0
-            endif !covice
-          elseif ((iceflg.ge.2).and.(icmflg.eq.3)) then
-            si_c(i,j)=sic_import(i,j) !Sea Ice Concentration
-            if (si_c(i,j).gt.0.0) then
-              si_tx(i,j) = -sitx_import(i,j) !Sea Ice X-Stress into ocean
-              si_ty(i,j) = -sity_import(i,j) !Sea Ice Y-Stress into ocean
-               si_h(i,j) =   sih_import(i,j) !Sea Ice Thickness
-               si_t(i,j) =   sit_import(i,j) !Sea Ice Temperature
-               si_u(i,j) =   siu_import(i,j) !Sea Ice X-Velocity
-               si_v(i,j) =   siv_import(i,j) !Sea Ice Y-Velocity
-            else
-              si_tx(i,j) = 0.0
-              si_ty(i,j) = 0.0
-               si_h(i,j) = 0.0
-               si_t(i,j) = 0.0
-               si_u(i,j) = 0.0
-               si_v(i,j) = 0.0
-            endif !covice
-          endif !iceflg>=2 (icmflg)
-        endif !ishlf
-      enddo
-      enddo
-
-#if defined(ARCTIC)
-!     update last active row of array
-!jcx  call xctila( sic_import,1,1,halo_ps) !Sea Ice Concentration
-!jcx  call xctila(sitx_import,1,1,halo_pv) !Sea Ice X-Stress
-!jcx  call xctila(sity_import,1,1,halo_pv) !Sea Ice Y-Stress
-!jcx  call xctila(siqs_import,1,1,halo_ps) !Solar Heat Flux thru Ice to Ocean
-!jcx  call xctila(sifh_import,1,1,halo_ps) !Ice Freezing/Melting Heat Flux
-!jcx  call xctila(sifs_import,1,1,halo_ps) !Ice Freezing/Melting Salt Flux
-!jcx  call xctila(sifw_import,1,1,halo_ps) !Ice Net Water Flux
-!jcx  call xctila( sit_import,1,1,halo_ps) !Sea Ice Temperature
-!jcx  call xctila( sih_import,1,1,halo_ps) !Sea Ice Thickness
-!jcx  call xctila( siu_import,1,1,halo_pv) !Sea Ice X-Velocity
-!jcx  call xctila( siv_import,1,1,halo_pv) !Sea Ice Y-Velocity
-      if ((iceflg.ge.2).and.(icmflg.ne.3)) then
-        call xctila(covice,1,1,halo_ps) !Sea Ice Concentration
-        call xctila(  si_c,1,1,halo_ps) !Sea Ice Concentration
-        call xctila( si_tx,1,1,halo_pv) !Sea Ice X-Stress into ocean
-        call xctila( si_ty,1,1,halo_pv) !Sea Ice Y-Stress into ocean
-        call xctila(fswice,1,1,halo_ps) !Solar Heat Flux thru Ice to Ocean
-        call xctila(flxice,1,1,halo_ps) !Ice Freezing/Melting Heat Flux
-        call xctila(sflice,1,1,halo_ps) !Ice Salt Flux
-        call xctila(wflice,1,1,halo_ps) !Ice Freshwater Flux
-        call xctila(temice,1,1,halo_ps) !Sea Ice Temperature
-        call xctila(  si_t,1,1,halo_ps) !Sea Ice Temperature
-        call xctila(thkice,1,1,halo_ps) !Sea Ice Thickness
-        call xctila(  si_h,1,1,halo_ps) !Sea Ice Thickness
-        call xctila(  si_u,1,1,halo_pv) !Sea Ice X-Velocity
-        call xctila(  si_v,1,1,halo_pv) !Sea Ice Y-Velocity
-      elseif ((iceflg.ge.2).and.(icmflg.eq.3)) then
-        call xctila(  si_c,1,1,halo_ps) !Sea Ice Concentration
-        call xctila( si_tx,1,1,halo_pv) !Sea Ice X-Stress into ocean
-        call xctila( si_ty,1,1,halo_pv) !Sea Ice Y-Stress into ocean
-        call xctila(  si_h,1,1,halo_ps) !Sea Ice Thickness
-        call xctila(  si_t,1,1,halo_ps) !Sea Ice Temperature
-        call xctila(  si_u,1,1,halo_pv) !Sea Ice X-Velocity
-        call xctila(  si_v,1,1,halo_pv) !Sea Ice Y-Velocity
-      endif
-#endif
-
-!     smooth sea ice velocity fields
-      call psmooth(si_u,0,0,ishlf,util1)
-      call psmooth(si_v,0,0,ishlf,util1)
-#if defined(ARCTIC)
-      call xctila(si_u,1,1,halo_pv)
-      call xctila(si_v,1,1,halo_pv)
-#endif
-!     call xctilr(si_u,1,1, nbdy,nbdy, halo_pv)
-!     call xctilr(si_v,1,1, nbdy,nbdy, halo_pv)
-
-!     copy back from si_ to _import for archive_ice
-      do j=1, jja
-      do i=1, ii
-        if (si_c(i,j).gt.0.0) then
-          siu_import(i,j)=si_u(i,j) !Sea Ice X-Velocity
-          siv_import(i,j)=si_v(i,j) !Sea Ice Y-Velocity
-        endif !si_c
-      enddo !i
-      enddo !j
-    endif !feedback from CICE to HYCOM
 
     if (mnproc.eq.1) print *, rname//" end..."
 

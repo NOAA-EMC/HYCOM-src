@@ -849,9 +849,11 @@
 #endif
 
 #if defined (USE_NUOPC_GENERIC)
+      logical cpl_merge
 ! ---  import from atm
       logical cpl_taux, cpl_tauy, cpl_wndspd, cpl_ustara, &
        cpl_airtmp, cpl_vapmix, cpl_precip, cpl_surtmp, cpl_seatmp
+      logical calc_wndspd, calc_radflx
 
 ! ---  import from ice
       logical cpl_sic, cpl_sitx, cpl_sity, cpl_siqs, cpl_sifh, &
@@ -911,8 +913,11 @@
       real ocn_cpl_frq
 ! --- precipitation factor for coupled simulation
       real pcp_fact  ! always 1. : no precipiation adjustment
+
 ! ---  import from atm
       real nstep1_cpl,nstep2_cpl
+#endif /* USE_NUOPC_CESMBETA */
+#if defined (USE_NUOPC_GENERIC)
       logical cpl_swflx, cpl_lwmdnflx, cpl_lwmupflx, &
        cpl_latflx, cpl_sensflx, &
        cpl_orivers,cpl_irivers
@@ -921,22 +926,28 @@
       logical cpl_implicit
 
 #  if defined(RELO)
+      logical, target, allocatable, dimension (:,:,:) :: &
+       imp_merge
       real, target, allocatable,dimension (:,:,:) :: &
-       imp_taux, imp_tauy, imp_taue, imp_taun, imp_wndspd, imp_ustara, &
+       imp_taux, imp_tauy, imp_taue, imp_taun, &
+       imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
-       imp_latflx, imp_sensflx, &
-       imp_precip, imp_surtmp, imp_seatmp, &
+       imp_radflx, imp_latflx, imp_sensflx, &
+       imp_mslprs, imp_precip, imp_surtmp, imp_seatmp, &
        imp_orivers,imp_irivers
 
 #  else
+      logical, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) :: &
+       imp_merge
       real, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) :: &
-       imp_taux, imp_tauy, imp_taue, imp_taun, imp_wndspd, imp_ustara, &
+       imp_taux, imp_tauy, imp_taue, imp_taun, &
+       imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
-       imp_latflx, imp_sensflx, &
-       imp_precip, imp_surtmp, imp_seatmp, &
+       imp_radflx, imp_latflx, imp_sensflx, &
+       imp_mslprs, imp_precip, imp_surtmp, imp_seatmp, &
        imp_orivers,imp_irivers
 #  endif
-#endif /* USE_NUOPC_CESMBETA */
+#endif /* USE_NUOPC_GENERIC */
 
 
 !
@@ -1740,12 +1751,18 @@
                savgm = 0.d0
                 frzh = 0.d0
 
+#endif /* USE_NUOPC_CESMBETA */
+
+#if defined (USE_NUOPC_GENERIC)
 #  if defined(RELO)
       allocate( &
+                  imp_merge(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_taux(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_tauy(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_taue(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_taun(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
+                 imp_wndspx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
+                 imp_wndspy(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_wndspd(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_ustara(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_airtmp(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
@@ -1753,8 +1770,10 @@
                   imp_swflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_lwdflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_lwuflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
+                 imp_radflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_latflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                 imp_sensflx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
+                 imp_mslprs(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                  imp_precip(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                 imp_irivers(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                 imp_orivers(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
@@ -1762,11 +1781,13 @@
                  imp_seatmp(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) )
       call mem_stat_add( 16*(idm+2*nbdy)*(jdm+2*nbdy)*(2) )
 #  endif
-
+                 imp_merge = .false.
                   imp_taux = 0.d0
                   imp_tauy = 0.d0
                   imp_taue = 0.d0
                   imp_taun = 0.d0
+                imp_wndspx = 0.d0
+                imp_wndspy = 0.d0
                 imp_wndspd = 0.d0
                 imp_ustara = 0.d0
                 imp_airtmp = 0.d0
@@ -1774,14 +1795,16 @@
                  imp_swflx = 0.d0
                 imp_lwdflx = 0.d0
                 imp_lwuflx = 0.d0
+                imp_radflx = 0.d0
                 imp_latflx = 0.d0
                imp_sensflx = 0.d0
+                imp_mslprs = 0.d0
                 imp_precip = 0.d0
                 imp_surtmp = 0.d0
                 imp_seatmp = 0.d0
                imp_irivers = 0.d0
                imp_orivers = 0.d0
-#endif /* USE_NUOPC_CESMBETA */
+#endif /* USE_NUOPC_GENERIC */
 
 #if defined (ESPC_COUPLE)
       allocate( &

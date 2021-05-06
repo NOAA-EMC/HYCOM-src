@@ -11,6 +11,9 @@
 #define SEA_U iu(i,j).ne.0
 #define SEA_V iv(i,j).ne.0
 #endif
+#if defined (USE_NUOPC_CESMBETA) || (ESPC_COUPLE)
+#define USE_NUOPC_GENERIC 1
+#endif
       module mod_hycom
 #if defined(USE_ESMF4)
       use ESMF_Mod       ! ESMF  Framework
@@ -29,6 +32,9 @@
       use mod_barotp     ! HYCOM barotropic
       use mod_asselin    ! HYCOM Asselin filter
       use mod_restart    ! HYCOM restart
+#if defined (USE_NUOPC_GENERIC)
+      use mod_import     ! HYCOM merge import
+#endif
 #if defined(STOKES)
       use mod_stokes     ! HYCOM Stokes drift
 #endif
@@ -2343,6 +2349,9 @@
 ! ---   set weights and fields for high frequency pressure forcing.
         call forfunhp(dtime)
       endif
+#if defined (USE_NUOPC_GENERIC)
+      if (cpl_merge) call hycom_imp_mrg()
+#endif
 !
 ! --- set weights for quasi-hermite time interpolation for kpar.
       if     (jerlv0.le.0) then
