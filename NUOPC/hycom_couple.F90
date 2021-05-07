@@ -481,10 +481,11 @@ module hycom_couple
     character(*), parameter :: rname="import_to_hycom_deb"
     integer                 :: i, j, mcnt
     real                    :: uij, vij
-    logical, allocatable    :: diag_msk(:,:)
-    real, allocatable       :: ocn_msk(:,:)
-    real, allocatable       :: field_tmp(:,:)
-    real, allocatable       :: tmx(:,:)
+    logical, allocatable    :: fld_msk(:,:)
+    real                    :: fld_max
+    real                    :: fld_min
+    real                    :: fld_sum
+    real                    :: fld_cnt
     real, parameter         :: sstmin=-1.8d0
     real, parameter         :: sstmax=35.0d0
     integer                 :: jja
@@ -507,6 +508,14 @@ module hycom_couple
 #else
     jja=jj
 #endif
+
+!   -----------------
+!   check fill_value
+    if ((fill_value.gt.-1.0e10).and.(fill_value.lt.1.0e10)) then
+      if (mnproc.eq.1) print *,"error - fill_value close to zero"
+      call xcstop('('//rname//')')
+             stop '('//rname//')'
+    endif
 
 !   -----------------
 !    set import flag
@@ -1075,56 +1084,36 @@ module hycom_couple
 
 !   diagnostic output
     if (show_minmax) then
-!     allocate memory
-      if (mnproc.eq.1) then
-        allocate(diag_msk(itdm,jtdm))
-        allocate(ocn_msk(itdm,jtdm))
-        allocate(field_tmp(itdm,jtdm))
-      else
-        allocate(diag_msk(1,1))
-        allocate(ocn_msk(1,1))
-        allocate(field_tmp(1,1))
-      endif
-      allocate(tmx(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy))
-
-!     ocn_msk: sea/land mask
-      tmx(:,:)=0.0
+!     allocate local field mask memory
+      allocate(fld_msk(lbound(impData,1):ubound(impData,1), &
+                       lbound(impData,2):ubound(impData,2)))
+!     calculate local field mask using fill value and ocean mask
+      fld_msk(:,:)=.false.
       do j=1, jja
       do i=1, ii
-        tmx(i,j)=ishlf(i,j)
-!x      tmx(i,j)=ip(i,j)
+        fld_msk(i+i0,j+j0)=((impData(i+i0,j+j0).ne.fill_value).and. &
+                            (ishlf(i,j).eq.1))
       enddo
       enddo
-      call xcaget(ocn_msk,tmx,1)
-!     call xcsync(no_flush)
-
-!     field_tmp: import data
-      tmx(:,:)=0.0
-      do j=1, jja
-      do i=1, ii
-!       tmx(i,j)=mgrid(i,j)
-        tmx(i,j)=impData(i+i0,j+j0)
-      enddo
-      enddo
-      call xcaget(field_tmp,tmx,1)
-!      call mpi_barrier(mpi_comm_hycom,ierr)
-!      call xcsync(no_flush)
-
-!     write minmax to stdout
+!     calculate local max,min,sum,cnt
+      fld_max=maxval(impData,fld_msk)
+      fld_min=minval(impData,fld_msk)
+      fld_sum=sum(impData,fld_msk)
+      fld_cnt=real(count(fld_msk))
+!     reduce max,min,sum,cnt to mnproc 1
+      call xcmaxr(fld_max,1)
+      call xcminr(fld_min,1)
+      call xcsumr(fld_sum,1)
+      call xcsumr(fld_cnt,1)
+!     write max,min,mean to stdout
       if (mnproc.eq.1) then
-        diag_msk=((ocn_msk.eq.1).AND.(field_tmp.ne.fill_value))
         write(*,992) trim(fieldName),          &
-          maxval(field_tmp,mask=diag_msk), &
-          minval(field_tmp,mask=diag_msk), &
-          (sum(field_tmp,mask=diag_msk)/count(diag_msk))
+          fld_max, fld_min, (fld_sum/fld_cnt)
  992    format('import_to_hycom_deb,max,min,mean=',A10,3E23.15)
       endif
 
 !     deallocate memory
-      if (allocated(diag_msk)) deallocate(diag_msk)
-      if (allocated(ocn_msk)) deallocate(ocn_msk)
-      if (allocated(field_tmp)) deallocate(field_tmp)
-      if (allocated(tmx)) deallocate(tmx)
+      if (allocated(fld_msk)) deallocate(fld_msk)
     endif !show_minmax
 
     if (mnproc.eq.1) print *, rname//" end..."
@@ -1151,6 +1140,15 @@ module hycom_couple
 #else
     jja=jj
 #endif
+
+!   -----------------
+!   check fill_value
+    if ((fill_value.gt.-1.0e10).and.(fill_value.lt.1.0e10)) then
+      if (mnproc.eq.1) print *,"error - fill_value close to zero"
+      call xcstop('('//rname//')')
+             stop '('//rname//')'
+    endif
+
 !   -----------------
 !   calculate imp_radflx
     if (lwflag.eq.2) then

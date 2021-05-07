@@ -28,6 +28,7 @@
       subroutine hycom_imp_mrg()
       character(*),parameter :: rname = 'hycom_imp_mrg'
       integer                :: i,j,jja
+      real                   :: mrg_cnt
 
 #if defined (USE_NUOPC_GENERIC)
 #if defined(ARCTIC)
@@ -36,6 +37,15 @@
 #else
         jja=jj
 #endif
+
+!       diagnostic output
+!       if (diagnostic) then
+          mrg_cnt = real(count(imp_merge(:,:,l0)))
+          call xcsumr(mrg_cnt,1)
+          if (mnproc.eq.1) then
+            write(*,'(A,E23.15)') rname//',imp_merge_cnt=',mrg_cnt
+          endif
+!       endif
 
         if(natm.eq.2) then
           if(cpl_taux) then
