@@ -189,6 +189,8 @@ module hycom_couple
 
 !   initialize couple flags when field index is 1
     if (k.eq.1) then
+      calc_wndspd=.false.
+      calc_radflx=.false.
       cpl_taux=.false.
       cpl_tauy=.false.
       cpl_u10=.false.
@@ -853,7 +855,11 @@ module hycom_couple
       if (sstflg.ne.3) then !use atmos sst as "truth"
         do j=1, jja
         do i=1, ii
-          imp_seatmp(i,j,l0)=max(sstmin,min(imp_surtmp(i,j,l0),sstmax))
+          if (imp_surtmp(i,j,l0).ne.fill_value) then
+            imp_seatmp(i,j,l0)=max(sstmin,min(imp_surtmp(i,j,l0),sstmax))
+          else
+            imp_seatmp(i,j,l0)=imp_surtmp(i,j,l0)
+          endif
         enddo
         enddo
 #if defined(ARCTIC)
@@ -1152,19 +1158,24 @@ module hycom_couple
 !   -----------------
 !   calculate imp_radflx
     if (lwflag.eq.2) then
-      if (mnproc.eq.1) print *, rname//" calculating radflx..."
-      calc_radflx=.true.
-      do j=1, jja
-      do i=1, ii
-        if ((imp_lwdflx(i,j,l0).ne.fill_value).and. &
-            (imp_swflx(i,j,l0).ne.fill_value)) then
-!         imp_radflx is defined as net lwdflx+swflx, +ve into ocean
-          imp_radflx(i,j,l0)=imp_lwdflx(i,j,l0)+imp_swflx(i,j,l0)
-        else
-          imp_radflx(i,j,l0)=fill_value
-        endif
-      enddo
-      enddo
+      if((cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd).and. &
+         (cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd)) then
+        if (mnproc.eq.1) print *, rname//" calculating radflx..."
+        calc_radflx=.true.
+        do j=1, jja
+        do i=1, ii
+          if ((imp_lwdflx(i,j,l0).ne.fill_value).and. &
+              (imp_swflx(i,j,l0).ne.fill_value)) then
+!           imp_radflx is defined as net lwdflx+swflx, +ve into ocean
+            imp_radflx(i,j,l0)=imp_lwdflx(i,j,l0)+imp_swflx(i,j,l0)
+          else
+            imp_radflx(i,j,l0)=fill_value
+          endif
+        enddo
+        enddo
+      else
+        calc_radflx=.false.
+      endif
 #if defined(ARCTIC)
       call xctila(imp_radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
@@ -1192,6 +1203,8 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(imp_wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
 #endif
+    else
+      calc_wndspd=.false.
     endif
 
     if (mnproc.eq.1) print *, rname//" end..."

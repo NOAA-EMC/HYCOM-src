@@ -181,17 +181,17 @@ module read_impexp_config_mod
       if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(11))
 
       dfltFldsImp = (/ &
-        hycom_fld_type("u10","inst_zonal_wind_height10m",&                    !01
+        hycom_fld_type("u10","inst_zonal_wind_height_lowest",&                !01
                        "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("v10","inst_merid_wind_height10m",&                    !02
+        hycom_fld_type("v10","inst_merid_wind_height_lowest",&                !02
                        "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
         hycom_fld_type("taux10","mean_zonal_moment_flx_atm",&                 !03
                        "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
         hycom_fld_type("tauy10","mean_merid_moment_flx_atm",&                 !04
                        "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("airtmp","inst_temp_height2m",&                        !05
+        hycom_fld_type("airtmp","inst_temp_height_lowest",&                   !05
                        "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("airhum","inst_spec_humid_height2m",&                  !06
+        hycom_fld_type("airhum","inst_spec_humid_height_lowest",&             !06
                        "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
         hycom_fld_type("prcp","mean_prec_rate",&                              !07
                        "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
@@ -206,11 +206,13 @@ module read_impexp_config_mod
       /)
 
       ! Set export fields
-      if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(1))
+      if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(2))
 
       dfltFldsExp = (/ &
         hycom_fld_type("sst","sea_surface_temperature",&                      !01
-                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1) &
+                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
+        hycom_fld_type("mask","ocean_mask",&                                  !02
+                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1) &
       /)
     end if
   end subroutine set_impexp_fields
