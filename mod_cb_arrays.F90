@@ -849,7 +849,7 @@
 #endif
 
 #if defined (USE_NUOPC_GENERIC)
-      logical cpl_merge
+      logical cpl_merge, cpl_diag
 ! ---  import from atm
       logical cpl_taux, cpl_tauy, cpl_wndspd, cpl_ustara, &
        cpl_airtmp, cpl_vapmix, cpl_precip, cpl_surtmp, cpl_seatmp
@@ -926,9 +926,8 @@
       logical cpl_implicit
 
 #  if defined(RELO)
-      logical, target, allocatable, dimension (:,:,:) :: &
-       imp_merge
       real, target, allocatable,dimension (:,:,:) :: &
+       imp_merge, &
        imp_taux, imp_tauy, imp_taue, imp_taun, &
        imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
@@ -937,9 +936,8 @@
        imp_orivers,imp_irivers
 
 #  else
-      logical, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) :: &
-       imp_merge
       real, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) :: &
+       imp_merge, &
        imp_taux, imp_tauy, imp_taue, imp_taun, &
        imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
@@ -1781,7 +1779,7 @@
                  imp_seatmp(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) )
       call mem_stat_add( 16*(idm+2*nbdy)*(jdm+2*nbdy)*(2) )
 #  endif
-                 imp_merge = .false.
+                 imp_merge = 0.d0
                   imp_taux = 0.d0
                   imp_tauy = 0.d0
                   imp_taue = 0.d0

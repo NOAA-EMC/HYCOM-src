@@ -120,7 +120,8 @@ module HYCOM_Mod
   real              :: endtime
   integer           :: itdmx, jtdmx
   logical           :: show_minmax
-  logical           :: merge_import
+  logical           :: import_diagnostics
+  logical           :: merge_all_import
   logical           :: skip_first_import
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
@@ -508,11 +509,18 @@ module HYCOM_Mod
       show_minmax = (trim(value)==".true.")
 
       call ESMF_AttributeGet(model, value=value, &
-        name="merge_import", defaultvalue=".true.", &
+        name="import_diagnostics", defaultvalue=".false.", &
         convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg="attribute get merge_import failed", CONTEXT)) return
-      merge_import = (trim(value)==".true.")
+        msg="attribute get import_diagnostics failed", CONTEXT)) return
+      import_diagnostics = (trim(value)==".true.")
+
+      call ESMF_AttributeGet(model, value=value, &
+        name="merge_all_import", defaultvalue=".false.", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get merge_all_import failed", CONTEXT)) return
+      merge_all_import = (trim(value)==".true.")
 
       call ESMF_AttributeGet(model, value=value, &
         name="skip_first_import", defaultvalue=".false.", &
@@ -614,7 +622,10 @@ module HYCOM_Mod
           'Show MinMax            = ',show_minmax
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'Merge Import           = ',merge_import
+          'Import Diagnostics     = ',import_diagnostics
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
+          'Merge All Import       = ',merge_all_import
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
           'Skip First Import      = ',skip_first_import
@@ -755,12 +766,6 @@ module HYCOM_Mod
     enddo
 #endif
 
-!#ifdef ESPC_SHOW_IMPEXP_MINMAX
-!  show_minmax=.true.
-!#else
-!  show_minmax=.false.
-!#endif
-
 #ifdef ESPC_TIMER
     call ESMF_VMBarrier(vm, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
@@ -888,7 +893,7 @@ module HYCOM_Mod
     enddo
 #endif
 
-    call hycom_couple_init(nPets,rc=rc)
+    call hycom_couple_init(nPets,import_diagnostics,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", &
       CONTEXT)) return
 
@@ -1458,11 +1463,11 @@ module HYCOM_Mod
     if (ESMF_STDERRORCHECK(rc)) return
 #endif
 
-!   reset set import field mask
-    call hycom_imp_reset(.false.)
     if (skip_first_import) then
+      call hycom_imp_reset(.false.)
       skip_first_import=.false.
     else
+      call hycom_imp_reset(merge_all_import)
 !     transform and copy each field to internal import arrays
 !     data will be copied from import arrays to hycom after
 !     forcing data is read
@@ -1826,7 +1831,6 @@ module HYCOM_Mod
     character(32)               :: cname
     character(*), parameter     :: rname="do_import"
     integer                     :: i, j
-    real*8, allocatable         :: impData(:,:)
     real(ESMF_KIND_RX), pointer :: field_data(:,:)
     integer                     :: tlb(2), tub(2)
     integer                     :: status
@@ -1847,20 +1851,9 @@ module HYCOM_Mod
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
 
-    allocate(impData(tlb(1):tub(1),tlb(2):tub(2)))
-    impData(:,:)=0.0
-    do j = tlb(2),tub(2)
-    do i = tlb(1),tub(1)
-      impData(i,j)=field_data(i,j)
-    enddo
-    enddo
-
-    call import_to_hycom_deb(tlb,tub,impData,fillValue,fieldName,show_minmax, &
-      rc=rc)
+    call import_to_hycom_deb(tlb,tub,field_data,fillValue,fieldName,show_minmax,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
-
-    if (allocated(impData)) deallocate(impData)
 
     ! Reset Import Field
     field_data = fillValue

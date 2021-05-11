@@ -19,7 +19,11 @@
       character(*),parameter :: rname = 'hycom_imp_reset'
 
 #if defined (USE_NUOPC_GENERIC)
-        imp_merge = reset
+        if(reset) then
+          imp_merge = 1.d0
+        else
+          imp_merge = 0.d0
+        endif
         cpl_merge = reset
 #endif
       end subroutine hycom_imp_reset
@@ -29,6 +33,7 @@
       character(*),parameter :: rname = 'hycom_imp_mrg'
       integer                :: i,j,jja
       real                   :: mrg_cnt
+      integer                :: tlb(2), tub(2)
 
 #if defined (USE_NUOPC_GENERIC)
 #if defined(ARCTIC)
@@ -39,266 +44,162 @@
 #endif
 
 !       diagnostic output
-!       if (diagnostic) then
-          mrg_cnt = real(count(imp_merge(:,:,l0)))
+        if (cpl_diag) then
+          ! count merge cells ignoring halos
+          mrg_cnt=0
+          do j=1, jja
+          do i=1, ii
+            if (imp_merge(i,j,l0).ne.0) mrg_cnt=mrg_cnt+1
+          enddo
+          enddo
           call xcsumr(mrg_cnt,1)
           if (mnproc.eq.1) then
             write(*,'(A,E23.15)') rname//',imp_merge_cnt=',mrg_cnt
+            if(cpl_taux) write(*,'(A)') rname//" merge imp_taux"
+            if(cpl_tauy) write(*,'(A)') rname//" merge imp_tauy"
+            if(cpl_wndspd.or.calc_wndspd) &
+              write(*,'(A)') rname//" merge imp_wndspd"
+            if(cpl_ustara) write(*,'(A)') rname//" merge imp_ustara"
+            if(cpl_airtmp) write(*,'(A)') rname//" merge imp_airtmp"
+            if(cpl_vapmix) write(*,'(A)') rname//" merge imp_vapmix"
+            if(cpl_precip) write(*,'(A)') rname//" merge imp_precip"
+            if(cpl_surtmp) write(*,'(A)') rname//" merge imp_surtmp"
+            if(cpl_seatmp) write(*,'(A)') rname//" merge imp_seatmp"
+            if(cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd) &
+              write(*,'(A)') rname//" merge imp_swflx"
+            if(cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd) &
+              write(*,'(A)') rname//" merge imp_lwdflx"
+            if(cpl_u10) write(*,'(A)') rname//" merge imp_wndspx"
+            if(cpl_v10) write(*,'(A)') rname//" merge imp_wndspy"
+            if(cpl_mslprs) write(*,'(A)') rname//" merge imp_mslprs"
+            if(calc_radflx) write(*,'(A)') rname//" merge imp_radflx"
           endif
-!       endif
+        endif
 
         if(natm.eq.2) then
+          tlb(1)=lbound(imp_merge,1)
+          tlb(2)=lbound(imp_merge,2)
+          tub(1)=ubound(imp_merge,1)
+          tub(2)=ubound(imp_merge,2)
           if(cpl_taux) then
-            if (mnproc.eq.1) print *, rname//" merge imp_taux"
-            taux(:,:,l0) = &
-              merge(imp_taux(:,:,l0),taux(:,:,l0),imp_merge(:,:,l0))
-            taux(:,:,l1) = &
-              merge(imp_taux(:,:,l0),taux(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                taux(i,j,:) = imp_taux(i,j,l0)
+            enddo
+            enddo
           endif
-          if (cpl_tauy) then
-            if (mnproc.eq.1) print *, rname//" merge imp_tauy"
-            tauy(:,:,l0) = &
-              merge(imp_tauy(:,:,l0),tauy(:,:,l0),imp_merge(:,:,l0))
-            tauy(:,:,l1) = &
-              merge(imp_tauy(:,:,l0),tauy(:,:,l1),imp_merge(:,:,l0))
+          if(cpl_tauy) then
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                tauy(i,j,:) = imp_tauy(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_wndspd.or.calc_wndspd) then
-            if (mnproc.eq.1) print *, rname//" merge imp_wndspd"
-            wndspd(:,:,l0) = &
-              merge(imp_wndspd(:,:,l0),wndspd(:,:,l0),imp_merge(:,:,l0))
-            wndspd(:,:,l1) = &
-              merge(imp_wndspd(:,:,l0),wndspd(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                wndspd(i,j,:) = imp_wndspd(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_ustara) then
-            if (mnproc.eq.1) print *, rname//" merge imp_ustara"
-            ustara(:,:,l0) = &
-              merge(imp_ustara(:,:,l0),ustara(:,:,l0),imp_merge(:,:,l0))
-            ustara(:,:,l1) = &
-              merge(imp_ustara(:,:,l0),ustara(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                ustara(i,j,:) = imp_ustara(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_airtmp) then
-            if (mnproc.eq.1) print *, rname//" merge imp_airtmp"
-            airtmp(:,:,l0) = &
-              merge(imp_airtmp(:,:,l0),airtmp(:,:,l0),imp_merge(:,:,l0))
-            airtmp(:,:,l1) = &
-              merge(imp_airtmp(:,:,l0),airtmp(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                airtmp(i,j,:) = imp_airtmp(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_vapmix) then
-            if (mnproc.eq.1) print *, rname//" merge imp_vapmix"
-            vapmix(:,:,l0) = &
-              merge(imp_vapmix(:,:,l0),vapmix(:,:,l0),imp_merge(:,:,l0))
-            vapmix(:,:,l1) = &
-              merge(imp_vapmix(:,:,l0),vapmix(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                vapmix(i,j,:) = imp_vapmix(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_precip) then
-            if (mnproc.eq.1) print *, rname//" merge imp_precip"
-            precip(:,:,l0) = &
-              merge(imp_precip(:,:,l0),precip(:,:,l0),imp_merge(:,:,l0))
-            precip(:,:,l1) = &
-              merge(imp_precip(:,:,l0),precip(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                precip(i,j,:) = imp_precip(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_surtmp) then
-            if (mnproc.eq.1) print *, rname//" merge imp_surtmp"
-            surtmp(:,:,l0) = &
-              merge(imp_surtmp(:,:,l0),surtmp(:,:,l0),imp_merge(:,:,l0))
-            surtmp(:,:,l1) = &
-              merge(imp_surtmp(:,:,l0),surtmp(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                surtmp(i,j,:) = imp_surtmp(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_seatmp) then
-            if (mnproc.eq.1) print *, rname//" merge imp_seatmp"
-            seatmp(:,:,l0) = &
-              merge(imp_seatmp(:,:,l0),seatmp(:,:,l0),imp_merge(:,:,l0))
-            seatmp(:,:,l1) = &
-              merge(imp_seatmp(:,:,l0),seatmp(:,:,l1),imp_merge(:,:,l0))
-          endif
-          if(cpl_sic) then
-            write(lp,'(/ a,a /)') 'error - ', &
-              rname//' cpl_sic merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sitx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-              rname//' cpl_sitx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sity) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sity merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_siqs) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_siqs merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sifh) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sifh merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sifs) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sifs merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sifw) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sifw merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sit) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sit merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sih) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sih merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_siu) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_siu merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_siv) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_siv merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_swflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_swflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_lwmdnflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_lwmdnflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_lwmupflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_lwmupflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_latflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_latflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_sensflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sensflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_orivers) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_orivers merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_irivers) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_irivers merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_implicit) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_implicit merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                seatmp(i,j,:) = imp_seatmp(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd) then
-            if (mnproc.eq.1) print *, rname//" merge imp_swflx"
-            swflx(:,:,l0) = &
-              merge(imp_swflx(:,:,l0),swflx(:,:,l0),imp_merge(:,:,l0))
-            swflx(:,:,l1) = &
-              merge(imp_swflx(:,:,l0),swflx(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                swflx(i,j,:) = imp_swflx(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd) then
-            if (mnproc.eq.1) print *, rname//" merge imp_lwdflx"
-            lwflx(:,:,l0) = &
-              merge(imp_lwdflx(:,:,l0),lwflx(:,:,l0),imp_merge(:,:,l0))
-            lwflx(:,:,l1) = &
-              merge(imp_lwdflx(:,:,l0),lwflx(:,:,l1),imp_merge(:,:,l0))
-          endif
-          if(cpl_sbhflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_sbhflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
-          endif
-          if(cpl_lthflx) then
-            write(lp,'(/ a,a /)') 'error - ', &
-               rname//' cpl_lthflx merge is not implemented'
-            call flush(lp)
-            call xcstop(rname)
-                   stop rname
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                lwflx(i,j,:) = imp_lwdflx(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_u10) then
-            if (mnproc.eq.1) print *, rname//" merge imp_wndspx"
-            wndspx(:,:,l0) = &
-              merge(imp_wndspx(:,:,l0),wndspx(:,:,l0),imp_merge(:,:,l0))
-            wndspx(:,:,l1) = &
-              merge(imp_wndspx(:,:,l0),wndspx(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                wndspx(i,j,:) = imp_wndspx(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_v10) then
-            if (mnproc.eq.1) print *, rname//" merge imp_wndspy"
-            wndspy(:,:,l0) = &
-              merge(imp_wndspy(:,:,l0),wndspy(:,:,l0),imp_merge(:,:,l0))
-            wndspy(:,:,l1) = &
-              merge(imp_wndspy(:,:,l0),wndspy(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                wndspy(i,j,:) = imp_wndspy(i,j,l0)
+            enddo
+            enddo
           endif
           if(cpl_mslprs) then
-            if (mnproc.eq.1) print *, rname//" merge imp_mslprs"
-            mslprs(:,:,l0) = &
-              merge(imp_mslprs(:,:,l0),mslprs(:,:,l0),imp_merge(:,:,l0))
-            mslprs(:,:,l1) = &
-              merge(imp_mslprs(:,:,l0),mslprs(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                mslprs(i,j,:) = imp_mslprs(i,j,l0)
+            enddo
+            enddo
           endif
           if(calc_radflx) then
-            if (mnproc.eq.1) print *, rname//" merge imp_radflx"
-            radflx(:,:,l0) = &
-              merge(imp_radflx(:,:,l0),radflx(:,:,l0),imp_merge(:,:,l0))
-            radflx(:,:,l1) = &
-              merge(imp_radflx(:,:,l0),radflx(:,:,l1),imp_merge(:,:,l0))
+            do j=tlb(2), tub(2)
+            do i=tlb(1), tub(1)
+              if (imp_merge(i,j,l0).ne.0) &
+                radflx(i,j,:) = imp_radflx(i,j,l0)
+            enddo
+            enddo
           endif
         else
           write(lp,'(/ a,a /)') 'error - ', &
@@ -319,7 +220,7 @@
 !       copy import data to sea ice
         do j=1, jja
         do i=1, ii
-          if (imp_merge(i,j,l0)) then
+          if (imp_merge(i,j,l0).ne.0) then
             if (ishlf(i,j).eq.1) then !standard ocean point
               if ((iceflg.ge.2).and.(icmflg.ne.3)) then
                 covice(i,j)=sic_import(i,j) !Sea Ice Concentration
@@ -427,7 +328,7 @@
 !       copy back from si_ to _import for archive_ice
         do j=1, jja
         do i=1, ii
-          if (imp_merge(i,j,l0)) then
+          if (imp_merge(i,j,l0).ne.0) then
             if (si_c(i,j).gt.0.0) then
               siu_import(i,j)=si_u(i,j) !Sea Ice X-Velocity
               siv_import(i,j)=si_v(i,j) !Sea Ice Y-Velocity

@@ -75,9 +75,10 @@ module hycom_couple
 !===============================================================================
   contains
 !===============================================================================
-  subroutine hycom_couple_init(nPets, rc)
+  subroutine hycom_couple_init(nPets, diag, rc)
 !   arguments
     integer, intent(in)  :: nPets
+    logical, intent(in)  :: diag
     integer, intent(out) :: rc
 !   local variables
     character(*), parameter :: rname="hycom_couple_init"
@@ -168,6 +169,9 @@ module hycom_couple
     enddo
     enddo
     call xcaget(cpldom%mask_q, tmx, 1)
+
+    cpl_merge = .false.
+    cpl_diag = diag
 
     if (mnproc.eq.1) print *, rname//" end..."
 
@@ -357,8 +361,8 @@ module hycom_couple
 
   !-----------------------------------------------------------------------------
 
-  subroutine export_from_hycom_deb(tlb, tub, expData, fieldName, show_minmax, &
-    rc)
+  subroutine export_from_hycom_deb(tlb, tub, expData, fieldName, &
+  show_minmax, rc)
 !   arguments
     integer, intent(in)           :: tlb(2)
     integer, intent(in)           :: tub(2)
@@ -471,10 +475,10 @@ module hycom_couple
   !-----------------------------------------------------------------------------
 
   subroutine import_to_hycom_deb(tlb, tub, impData, fill_value, fieldName, &
-    show_minmax, rc)
+  show_minmax, rc)
 !   arguments
     integer, intent(in)           :: tlb(2), tub(2)
-    real*8, intent(inout)         :: impData(tlb(1):tub(1),tlb(2):tub(2))
+    real*8, intent(in)            :: impData(tlb(1):tub(1),tlb(2):tub(2))
     real*8, intent(in)            :: fill_value
     character(len=30), intent(in) :: fieldName
     logical, intent(in)           :: show_minmax
@@ -525,16 +529,19 @@ module hycom_couple
     if (.not.cpl_merge) then
       do j=1, jja
       do i=1, ii
-        imp_merge(i,j,l0) = impData(i+i0,j+j0).ne.fill_value
+        if (impData(i+i0,j+j0).eq.fill_value) then
+          imp_merge(i,j,l0)=0.d0
+        else
+          imp_merge(i,j,l0)=1.d0
+        endif
       enddo
       enddo
       cpl_merge = .true.
     endif
-! TBD: implement xctila xtilr for logical variables
 #if defined(ARCTIC)
-!      call xctila(imp_merge(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+    call xctila(imp_merge,1,1,halo_ps)
 #endif
-!      call xctilr(imp_merge(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+    call xctilr(imp_merge,1,1,nbdy,nbdy,halo_ps)
 
 !   -----------------
 !    import from atm
@@ -552,9 +559,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_taux,1,1,halo_pv)
 #endif
-      call xctilr(imp_taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_taux,1,1,nbdy,nbdy,halo_pv)
 !   -----------------
 !   import ystress: Pa
     elseif (fieldName.eq.'tauy10') then
@@ -576,11 +583,11 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_taux(1-nbdy,1-nbdy,l0),1,1, halo_pv)
-      call xctila(imp_tauy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_taux,1,1,halo_pv)
+      call xctila(imp_tauy,1,1,halo_pv)
 #endif
-      call xctilr(imp_taux(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-      call xctilr(imp_tauy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_taux,1,1,nbdy,nbdy,halo_pv)
+      call xctilr(imp_tauy,1,1,nbdy,nbdy,halo_pv)
 !   -----------------
 !   import u wind at 10m height: ms-1
     elseif (fieldName.eq.'u10') then
@@ -594,9 +601,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_wndspx,1,1,halo_pv)
 #endif
-      call xctilr(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_wndspx,1,1,nbdy,nbdy,halo_pv)
 !   -----------------
 !   import v wind at 10m height: ms-1
     elseif (fieldName.eq.'v10') then
@@ -618,11 +625,11 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, halo_pv)
-      call xctila(imp_wndspy(1-nbdy,1-nbdy,l0),1,1, halo_pv)
+      call xctila(imp_wndspx,1,1,halo_pv)
+      call xctila(imp_wndspy,1,1,halo_pv)
 #endif
-      call xctilr(imp_wndspx(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
-      call xctilr(imp_wndspy(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_pv)
+      call xctilr(imp_wndspx,1,1,nbdy,nbdy,halo_pv)
+      call xctilr(imp_wndspy,1,1,nbdy,nbdy,halo_pv)
 !   -----------------
 !   import wind speed: m s-1
     elseif (fieldName.eq.'wndspd10') then
@@ -636,8 +643,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_wndspd,1,1,halo_ps)
 #endif
+      call xctilr(imp_wndspd,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import friction speed: m s-1
     elseif (fieldName.eq.'ustara10') then
@@ -651,8 +659,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_ustara(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_ustara,1,1,halo_ps)
 #endif
+      call xctilr(imp_ustara,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import air temperature
     elseif (fieldName.eq.'airtmp') then
@@ -671,8 +680,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_airtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_airtmp,1,1,halo_ps)
 #endif
+      call xctilr(imp_airtmp,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import specific humidity: kg kg-1
     elseif (fieldName.eq.'airhum') then
@@ -703,8 +713,9 @@ module hycom_couple
         enddo
       endif
 #if defined(ARCTIC)
-      call xctila(imp_vapmix(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_vapmix,1,1,halo_ps)
 #endif
+      call xctilr(imp_vapmix,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import sw flux: w m-2
     elseif (fieldName.eq.'swflx_net') then
@@ -718,8 +729,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_swflx,1,1,halo_ps)
 #endif
+      call xctilr(imp_swflx,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import downward sw flux: w m-2
     elseif ((fieldName.eq.'swflx_net2down').or. &
@@ -773,8 +785,9 @@ module hycom_couple
         enddo
       endif !albflg
 #if defined(ARCTIC)
-      call xctila(imp_swflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_swflx,1,1,halo_ps)
 #endif
+      call xctilr(imp_swflx,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import lw flux: w m-2
     elseif (fieldName.eq.'lwflx_net') then
@@ -793,8 +806,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_lwdflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_lwdflx,1,1,halo_ps)
 #endif
+      call xctilr(imp_lwdflx,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import downward lw flux: w m-2
 !   +ve into ocean
@@ -810,8 +824,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_lwdflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_lwdflx,1,1,halo_ps)
 #endif
+      call xctilr(imp_lwdflx,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import precip: m s-1
     elseif (fieldName.eq.'prcp') then
@@ -830,8 +845,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(precip(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_precip,1,1,halo_ps)
 #endif
+      call xctilr(imp_precip,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import surface temperature
     elseif (fieldName.eq.'gt') then
@@ -850,8 +866,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_surtmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_surtmp,1,1,halo_ps)
 #endif
+      call xctilr(imp_surtmp,1,1,nbdy,nbdy,halo_ps)
       if (sstflg.ne.3) then !use atmos sst as "truth"
         do j=1, jja
         do i=1, ii
@@ -863,8 +880,9 @@ module hycom_couple
         enddo
         enddo
 #if defined(ARCTIC)
-        call xctila(imp_seatmp(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+        call xctila(imp_seatmp,1,1,halo_ps)
 #endif
+        call xctilr(imp_seatmp,1,1,nbdy,nbdy,halo_ps)
       endif
 !   -----------------
 !   import sea level pressure anomaly: Pa
@@ -879,9 +897,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_mslprs(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_mslprs,1,1,halo_ps)
 #endif
-      call xctilr(imp_mslprs(1-nbdy,1-nbdy,l0),1,1, nbdy,nbdy, halo_ps)
+      call xctilr(imp_mslprs,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !    import from sea ice
 !   ---------------------
@@ -899,6 +917,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sic_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sic_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import ice x-stress
     elseif (fieldName.eq.'sitx') then
@@ -914,6 +933,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sitx_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
+      call xctilr(sitx_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import ice y-stress
     elseif (fieldName.eq.'sity') then
@@ -929,6 +949,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sity_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
+      call xctilr(sity_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import solar thru grid cell ave.
     elseif (fieldName.eq.'siqs') then
@@ -944,6 +965,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(siqs_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(siqs_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import freeze, melt, H. Flux
     elseif (fieldName.eq.'sifh') then
@@ -959,6 +981,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sifh_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sifh_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import salt flux
     elseif (fieldName.eq.'sifs') then
@@ -974,6 +997,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sifs_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sifs_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import water flux
     elseif (fieldName.eq.'sifw') then
@@ -989,6 +1013,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sifw_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sifw_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import sea ice temperature
     elseif (fieldName.eq.'sit_sfc') then
@@ -1021,6 +1046,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sit_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sit_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import sea ice thickness
     elseif (fieldName.eq.'sih') then
@@ -1036,6 +1062,7 @@ module hycom_couple
 #if defined(ARCTIC)
       call xctila(sih_import(1-nbdy,1-nbdy),1,1,halo_ps)
 #endif
+      call xctilr(sih_import,1,1,nbdy,nbdy,halo_ps)
 !   ---------------------
 !   import sea ice x-velocity
     elseif (fieldName.eq.'siu') then
@@ -1082,6 +1109,8 @@ module hycom_couple
       call xctila(siu_import(1-nbdy,1-nbdy),1,1,halo_pv)
       call xctila(siv_import(1-nbdy,1-nbdy),1,1,halo_pv)
 #endif
+      call xctilr(siu_import,1,1,nbdy,nbdy,halo_ps)
+      call xctilr(siv_import,1,1,nbdy,nbdy,halo_ps)
     else ! field unknown error
       if (mnproc.eq.1) print *, "error - fieldName unknown: "//trim(fieldName)
       call xcstop('('//rname//')')
@@ -1093,7 +1122,7 @@ module hycom_couple
 !     allocate local field mask memory
       allocate(fld_msk(lbound(impData,1):ubound(impData,1), &
                        lbound(impData,2):ubound(impData,2)))
-!     calculate local field mask using fill value and ocean mask
+!     calculate field mask using fill value and ocean mask, ignore halos
       fld_msk(:,:)=.false.
       do j=1, jja
       do i=1, ii
@@ -1177,8 +1206,9 @@ module hycom_couple
         calc_radflx=.false.
       endif
 #if defined(ARCTIC)
-      call xctila(imp_radflx(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_radflx,1,1,halo_ps)
 #endif
+      call xctilr(imp_radflx,1,1,nbdy,nbdy,halo_ps)
     else
       if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
       call xcstop('('//rname//')')
@@ -1201,8 +1231,9 @@ module hycom_couple
       enddo
       enddo
 #if defined(ARCTIC)
-      call xctila(imp_wndspd(1-nbdy,1-nbdy,l0),1,1,halo_ps)
+      call xctila(imp_wndspd,1,1,halo_ps)
 #endif
+      call xctilr(imp_wndspd,1,1,nbdy,nbdy,halo_ps)
     else
       calc_wndspd=.false.
     endif
