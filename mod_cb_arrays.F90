@@ -1814,6 +1814,11 @@
 
 #  endif
 
+#if defined (USE_NUOPC_GENERIC)
+       cpl_merge = .false.
+       cpl_diag  = .false.
+#endif /* USE_NUOPC_GENERIC */
+
       end subroutine cb_allocate
 
       end module mod_cb_arrays

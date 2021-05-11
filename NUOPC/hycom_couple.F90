@@ -214,7 +214,9 @@ module hycom_couple
       cpl_surtmp=.false.
       cpl_seatmp=.false.
       cpl_sbhflx=.false.
+      cpl_sensflx=.false.
       cpl_lthflx=.false.
+      cpl_latflx=.false.
       cpl_sic=.false.
       cpl_sitx=.false.
       cpl_sity=.false.
@@ -276,8 +278,12 @@ module hycom_couple
       cpl_seatmp=.true.
     elseif (fieldName.eq.'sbhflx') then
       cpl_sbhflx=.true.
+    elseif (fieldName.eq.'sensflx') then
+      cpl_sensflx=.true.
     elseif (fieldName.eq.'lthflx') then
       cpl_lthflx=.true.
+    elseif (fieldName.eq.'latflx') then
+      cpl_latflx=.true.
 !   import ice concentration
     elseif (fieldName.eq.'sic') then
       cpl_sic=.true.
@@ -884,6 +890,38 @@ module hycom_couple
 #endif
         call xctilr(imp_seatmp,1,1,nbdy,nbdy,halo_ps)
       endif
+!   -----------------
+!   import latent heat flux: w m-2
+    elseif (fieldName.eq.'latflx') then
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          imp_latflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          imp_latflx(i,j,l0)=0.0
+        endif
+      enddo
+      enddo
+#if defined(ARCTIC)
+      call xctila(imp_latflx,1,1,halo_ps)
+#endif
+      call xctilr(imp_latflx,1,1,nbdy,nbdy,halo_ps)
+!   -----------------
+!   import sensible heat flux: w m-2
+    elseif (fieldName.eq.'sensflx') then
+      do j=1, jja
+      do i=1, ii
+        if (ishlf(i,j).eq.1) then
+          imp_sensflx(i,j,l0)=impData(i+i0,j+j0)
+        else
+          imp_sensflx(i,j,l0)=0.0
+        endif
+      enddo
+      enddo
+#if defined(ARCTIC)
+      call xctila(imp_sensflx,1,1,halo_ps)
+#endif
+      call xctilr(imp_sensflx,1,1,nbdy,nbdy,halo_ps)
 !   -----------------
 !   import sea level pressure anomaly: Pa
     elseif (fieldName.eq.'mslprs') then

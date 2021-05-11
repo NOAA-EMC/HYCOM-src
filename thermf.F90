@@ -1,3 +1,6 @@
+#if defined (USE_NUOPC_CESMBETA) || (ESPC_COUPLE)
+#define USE_NUOPC_GENERIC 1
+#endif
 #if defined(ROW_LAND)
 #define SEA_P .true.
 #define SEA_U .true.
@@ -1047,6 +1050,9 @@
       subroutine thermfj(m,n,dtime, j)
       use mod_xc         ! HYCOM communication interface
       use mod_cb_arrays  ! HYCOM saved arrays
+#if defined (USE_NUOPC_GENERIC)
+      use mod_import     ! HYCOM merge import
+#endif
 #if defined(STOKES)
       use mod_stokes  !    HYCOM Stokes Drift
 #endif
@@ -1512,6 +1518,10 @@
         evap  =ctl*airdns*evaplh*wind* &
                max(0.,0.97*qsatur(temp(i,j,1,n))-vpmx)
         snsibl=csh*airdns*csubp*wind*(temp(i,j,1,n)-airt)
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) evap = hycom_imp_mrg_latflx(i,j,evap)
+        if (cpl_merge) snsibl = hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
 #endif  /* USE_NUOPC_CESMBETA */
 ! ---   surflx = thermal energy flux (W/m^2) into ocean
         surflx(i,j)=radfl - snsibl - evap
@@ -1557,6 +1567,10 @@
 #else
         evap   = slat*clh*wind*(0.97*qsatur(temp(i,j,1,n))-vpmx)
         snsibl = ssen*csh*wind* tdif
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) evap = hycom_imp_mrg_latflx(i,j,evap)
+        if (cpl_merge) snsibl = hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
 #endif /* USE_NUOPC_CESMBETA */
         surflx(i,j) = radfl - snsibl - evap
 !
@@ -1664,6 +1678,10 @@
 #else
         evap   = slat*clh*wind*(0.97*qsatur(temp(i,j,1,n))-vpmx)
         snsibl = ssen*csh*wind* tdif
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) evap = hycom_imp_mrg_latflx(i,j,evap)
+        if (cpl_merge) snsibl = hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
 #endif /* USE_NUOPC_CESMBETA */
         surflx(i,j) = radfl - snsibl - evap
 !
@@ -1776,6 +1794,10 @@
         evap   = slat*clh*wind*(qsatur6(temp(i,j,1,n),pair,sssf)-vpmx)
 ! ---   snsibl = sensible heat flux  (W/m^2) into atmos from ocean.
         snsibl = ssen*csh*wind* tdif         !wind=samo
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) evap = hycom_imp_mrg_latflx(i,j,evap)
+        if (cpl_merge) snsibl = hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
 #endif /* USE_NUOPC_CESMBETA */
 ! ---   surflx = thermal energy flux (W/m^2) into ocean
         surflx(i,j) = radfl - snsibl - evap
@@ -1876,6 +1898,9 @@
         endif
 #else
         evap = slat*ce10*wind*(qsatur5(temp(i,j,1,n),qrair)-vpmx)
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) evap = hycom_imp_mrg_latflx(i,j,evap)
+#endif
 #endif /* USE_NUOPC_CESMBETA */
 
 ! --- Sensible Heat flux
@@ -1888,6 +1913,9 @@
         endif
 #else
         snsibl = ssen*ch10*wind*(temp(i,j,1,n)-airt)
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_merge) snsibl = hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
 #endif /* USE_NUOPC_CESMBETA */
 
 ! --- Total surface fluxes

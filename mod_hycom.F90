@@ -2350,6 +2350,7 @@
         call forfunhp(dtime)
       endif
 #if defined (USE_NUOPC_GENERIC)
+      if (cpl_diag) call hycom_imp_mrg_diag()
       if (cpl_merge) call hycom_imp_mrg()
 #endif
 !

@@ -9,7 +9,10 @@
       implicit none
 
       public hycom_imp_reset
+      public hycom_imp_mrg_diag
       public hycom_imp_mrg
+      public hycom_imp_mrg_latflx
+      public hycom_imp_mrg_sensflx
 
       contains
 
@@ -28,9 +31,9 @@
 #endif
       end subroutine hycom_imp_reset
 
-! --- merge import data where imp_merge is true
-      subroutine hycom_imp_mrg()
-      character(*),parameter :: rname = 'hycom_imp_mrg'
+! --- print merge import data diagnostics
+      subroutine hycom_imp_mrg_diag()
+      character(*),parameter :: rname = 'hycom_imp_mrg_diag'
       integer                :: i,j,jja
       real                   :: mrg_cnt
       integer                :: tlb(2), tub(2)
@@ -43,38 +46,60 @@
         jja=jj
 #endif
 
-!       diagnostic output
-        if (cpl_diag) then
-          ! count merge cells ignoring halos
-          mrg_cnt=0
-          do j=1, jja
-          do i=1, ii
-            if (imp_merge(i,j,l0).ne.0) mrg_cnt=mrg_cnt+1
-          enddo
-          enddo
-          call xcsumr(mrg_cnt,1)
-          if (mnproc.eq.1) then
-            write(*,'(A,E23.15)') rname//',imp_merge_cnt=',mrg_cnt
-            if(cpl_taux) write(*,'(A)') rname//" merge imp_taux"
-            if(cpl_tauy) write(*,'(A)') rname//" merge imp_tauy"
-            if(cpl_wndspd.or.calc_wndspd) &
-              write(*,'(A)') rname//" merge imp_wndspd"
-            if(cpl_ustara) write(*,'(A)') rname//" merge imp_ustara"
-            if(cpl_airtmp) write(*,'(A)') rname//" merge imp_airtmp"
-            if(cpl_vapmix) write(*,'(A)') rname//" merge imp_vapmix"
-            if(cpl_precip) write(*,'(A)') rname//" merge imp_precip"
-            if(cpl_surtmp) write(*,'(A)') rname//" merge imp_surtmp"
-            if(cpl_seatmp) write(*,'(A)') rname//" merge imp_seatmp"
-            if(cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd) &
-              write(*,'(A)') rname//" merge imp_swflx"
-            if(cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd) &
-              write(*,'(A)') rname//" merge imp_lwdflx"
-            if(cpl_u10) write(*,'(A)') rname//" merge imp_wndspx"
-            if(cpl_v10) write(*,'(A)') rname//" merge imp_wndspy"
-            if(cpl_mslprs) write(*,'(A)') rname//" merge imp_mslprs"
-            if(calc_radflx) write(*,'(A)') rname//" merge imp_radflx"
-          endif
+        ! count merge cells ignoring halos
+        mrg_cnt=0
+        do j=1, jja
+        do i=1, ii
+          if (imp_merge(i,j,l0).ne.0) mrg_cnt=mrg_cnt+1
+        enddo
+        enddo
+        call xcsumr(mrg_cnt,1)
+        if (mnproc.eq.1) then
+          write(*,'(A,L1)') rname//',cpl_merge=',cpl_merge
+          write(*,'(A,E23.15)') rname//',imp_merge_cnt=',mrg_cnt
+          if(cpl_taux) write(*,'(A)') rname//" merge imp_taux"
+          if(cpl_tauy) write(*,'(A)') rname//" merge imp_tauy"
+          if(cpl_wndspd.or.calc_wndspd) &
+            write(*,'(A)') rname//" merge imp_wndspd"
+          if(cpl_ustara) write(*,'(A)') rname//" merge imp_ustara"
+          if(cpl_airtmp) write(*,'(A)') rname//" merge imp_airtmp"
+          if(cpl_vapmix) write(*,'(A)') rname//" merge imp_vapmix"
+          if(cpl_precip) write(*,'(A)') rname//" merge imp_precip"
+          if(cpl_surtmp) write(*,'(A)') rname//" merge imp_surtmp"
+          if(cpl_seatmp) write(*,'(A)') rname//" merge imp_seatmp"
+          if(cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd) &
+            write(*,'(A)') rname//" merge imp_swflx"
+          if(cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd) &
+            write(*,'(A)') rname//" merge imp_lwdflx"
+          if(cpl_u10) write(*,'(A)') rname//" merge imp_wndspx"
+          if(cpl_v10) write(*,'(A)') rname//" merge imp_wndspy"
+          if(cpl_mslprs) write(*,'(A)') rname//" merge imp_mslprs"
+          if(calc_radflx) write(*,'(A)') rname//" merge imp_radflx"
+          if(cpl_latflx) write(*,'(A)') rname//" merge imp_latflx"
+          if(cpl_sensflx) write(*,'(A)') rname//" merge imp_sensflx"
         endif
+#else
+        write(lp,'(/ a,a /)') 'error - ', &
+          rname//' merge requires USE_NUOPC_CESMBETA or ESPC_COUPLE'
+        call flush(lp)
+        call xcstop(rname)
+               stop rname
+#endif
+      end subroutine hycom_imp_mrg_diag
+
+! --- merge import data where imp_merge is true
+      subroutine hycom_imp_mrg()
+      character(*),parameter :: rname = 'hycom_imp_mrg'
+      integer                :: i,j,jja
+      integer                :: tlb(2), tub(2)
+
+#if defined (USE_NUOPC_GENERIC)
+#if defined(ARCTIC)
+!   arctic (tripole) domain, top row is replicated (ignore it)
+        jja=min(jj,(jtdm-1-j0))
+#else
+        jja=jj
+#endif
 
         if(natm.eq.2) then
           tlb(1)=lbound(imp_merge,1)
@@ -337,7 +362,57 @@
         enddo !i
         enddo !j
       endif !feedback from CICE to HYCOM
+#else
+        write(lp,'(/ a,a /)') 'error - ', &
+          rname//' merge requires USE_NUOPC_CESMBETA or ESPC_COUPLE'
+        call flush(lp)
+        call xcstop(rname)
+               stop rname
 #endif
       end subroutine hycom_imp_mrg
+
+! --- return imp_latflx if imp_merge(i,j) is true
+      real function hycom_imp_mrg_latflx(i,j,fval)
+      integer :: i,j
+      real :: fval
+      character(*),parameter :: rname = 'hycom_imp_mrg_latflx'
+
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_latflx.and.(imp_merge(i,j,l0).ne.0)) then
+          hycom_imp_mrg_latflx=imp_latflx(i,j,l0)
+        else
+          hycom_imp_mrg_latflx=fval
+        endif
+#else
+        hycom_imp_mrg_latflx=fval
+        write(lp,'(/ a,a /)') 'error - ', &
+          rname//' merge requires USE_NUOPC_CESMBETA or ESPC_COUPLE'
+        call flush(lp)
+        call xcstop(rname)
+               stop rname
+#endif
+      end function hycom_imp_mrg_latflx
+
+! --- return imp_sensflx if imp_merge(i,j) is true
+      real function hycom_imp_mrg_sensflx(i,j,fval)
+      integer :: i,j
+      real :: fval
+      character(*),parameter :: rname = 'hycom_imp_mrg_sensflx'
+
+#if defined (USE_NUOPC_GENERIC)
+        if (cpl_sensflx.and.(imp_merge(i,j,l0).ne.0)) then
+          hycom_imp_mrg_sensflx=imp_sensflx(i,j,l0)
+        else
+          hycom_imp_mrg_sensflx=fval
+        endif
+#else
+        hycom_imp_mrg_sensflx=fval
+        write(lp,'(/ a,a /)') 'error - ', &
+          rname//' merge requires USE_NUOPC_CESMBETA or ESPC_COUPLE'
+        call flush(lp)
+        call xcstop(rname)
+               stop rname
+#endif
+      end function hycom_imp_mrg_sensflx
 
       end module mod_import
