@@ -37,41 +37,15 @@ module read_impexp_config_mod
 !===============================================================================
 ! module variables
 !===============================================================================
-  type fieldRemapFlag
-    sequence
-    private
-      integer :: remap
-  end type
-
-  type(fieldRemapFlag), parameter ::       &
-    FLD_REMAP_ERROR  = fieldRemapFlag(-1), &
-    FLD_REMAP_UNKOWN = fieldRemapFlag(0),  &
-    FLD_REMAP_REDIST = fieldRemapFlag(1),  &
-    FLD_REMAP_BILINR = fieldRemapFlag(2),  &
-    FLD_REMAP_CONSRV = fieldRemapFlag(3)
-
-  type fieldMaskFlag
-    sequence
-    private
-      integer :: mask
-  end type
-
-  type(fieldMaskFlag), parameter ::   &
-    FLD_MASK_ERR = fieldMaskFlag(-1), &
-    FLD_MASK_UNK = fieldMaskFlag(0),  &
-    FLD_MASK_NNE = fieldMaskFlag(1),  &
-    FLD_MASK_LND = fieldMaskFlag(2),  &
-    FLD_MASK_WTR = fieldMaskFlag(3)
-
   type hycom_fld_type
     sequence
     character(len=30)    :: fieldName   = "dummy"
     character(len=60)    :: standName   = "dummy"
     character(len=30)    :: fieldUnit   = "-"
-    logical              :: fieldEnable = .FALSE.
-    type(fieldRemapFlag) :: mapping     = FLD_REMAP_REDIST
-    type(fieldMaskFlag)  :: mask        = FLD_MASK_NNE
-    real                 :: fillValue   = 999999999.0
+    real                 :: minValue    = -1.0e10
+    real                 :: maxValue    =  1.0e10
+    real                 :: fillValue   =  9.9e10
+    logical              :: fieldEnable = .TRUE.
   end type hycom_fld_type
 
   type(hycom_fld_type), target, allocatable :: dfltFldsImp(:)
@@ -86,18 +60,6 @@ module read_impexp_config_mod
     module procedure read_impexp_config_list
   end interface
 
-  interface operator (==)
-    module procedure field_rfeq
-    module procedure field_mfeq
-  end interface
-
-  interface assignment (=)
-    module procedure field_rfas_string
-    module procedure field_mfas_string
-    module procedure field_stringas_rf
-    module procedure field_stringas_mf
-  end interface
-
 !===============================================================================
   contains
 !===============================================================================
@@ -107,112 +69,69 @@ module read_impexp_config_mod
       ! Set import fields
       if (trim(atm_model_type) == "datm") then
         if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(11))
-
-        dfltFldsImp = (/                                                      &
-          hycom_fld_type("taux10","mean_zonal_moment_flx",                    & !01 Faxa_taux
-                         "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("tauy10","mean_merid_moment_flx",                    & !02 Faxa_tauy
-                         "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("airtmp","inst_temp_height_lowest",                  & !03 Sa_tbot
-                         "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
-          hycom_fld_type("airhum","inst_spec_humid_height_lowest",            & !04 Sa_shum
-                         "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),   &
-          hycom_fld_type("prcp","mean_prec_rate",                             & !05 Faxa_rain
-                         "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-          hycom_fld_type("mslprs","inst_pres_height_surface",                 & !06 Sa_pslv
-                         "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),        &
-          hycom_fld_type("swflx_net", "mean_net_sw_flx",                      & !07 Foxx_swnet
-                         "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("lwflx_net", "mean_net_lw_flx",                      & !08 Foxx_lwnet
-                         "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("wndspd10", "inst_wind_speed_height_lowest",         & !09 Sa_wspd
-                         "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("gt", "inst_temp_skin_temperature",                  & !10 Sa_tskn
-                         "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
-          hycom_fld_type("sic","ice_fraction",                                & !11 Si_ifrac
-                         "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
+        dfltFldsImp = (/ &
+          hycom_fld_type("taux10   ","mean_zonal_moment_flx        ","N m-2     "), & !01 Faxa_taux
+          hycom_fld_type("tauy10   ","mean_merid_moment_flx        ","N m-2     "), & !02 Faxa_tauy
+          hycom_fld_type("airtmp   ","inst_temp_height_lowest      ","K         "), & !03 Sa_tbot
+          hycom_fld_type("airhum   ","inst_spec_humid_height_lowest","kg kg-1   "), & !04 Sa_shum
+          hycom_fld_type("prcp     ","mean_prec_rate               ","kg m-2 s-1"), & !05 Faxa_rain
+          hycom_fld_type("mslprs   ","inst_pres_height_surface     ","Pa        "), & !06 Sa_pslv
+          hycom_fld_type("swflx_net","mean_net_sw_flx              ","W m-2     "), & !07 Foxx_swnet
+          hycom_fld_type("lwflx_net","mean_net_lw_flx              ","W m-2     "), & !08 Foxx_lwnet
+          hycom_fld_type("wndspd10 ","inst_wind_speed_height_lowest","m s-1     "), & !09 Sa_wspd
+          hycom_fld_type("gt       ","inst_temp_skin_temperature   ","K         "), & !10 Sa_tskn
+          hycom_fld_type("sic      ","ice_fraction                 ","1         ")  & !11 Si_ifrac
         /)
       else
-        if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(11))
-
-        dfltFldsImp = (/                                                      &
-          hycom_fld_type("u10","inst_zonal_wind_height_lowest",               & !01 Sa_u
-                         "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("v10","inst_merid_wind_height_lowest",               & !02 Sa_v
-                         "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("taux10","mean_zonal_moment_flx",                    & !03 Faxa_taux
-                         "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("tauy10","mean_merid_moment_flx",                    & !04 Faxa_tauy
-                         "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("airtmp","inst_temp_height_lowest",                  & !05 Sa_tbot
-                         "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),         &
-          hycom_fld_type("airhum","inst_spec_humid_height_lowest",            & !06 Sa_shum
-                         "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),   &
-          hycom_fld_type("prcp","mean_prec_rate",                             & !07 Faxa_rain
-                         "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-          hycom_fld_type("swflx_net","mean_net_sw_flx",                       & !08 Foxx_swnet
-                         "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("lwflx_net","mean_net_lw_flx",                       & !09 Foxx_lwnet
-                         "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),     &
-          hycom_fld_type("mslprs","inst_pres_height_surface",                 & !10 Sa_pslv
-                         "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),        &
-          hycom_fld_type("gt","inst_temp_skin_temperature",                   & !11 Sa_tskn
-                         "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)          &
+        if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(13))
+        dfltFldsImp = (/ &
+          hycom_fld_type("u10    ","inst_zonal_wind_height_lowest","m s-1     "), & !01 Sa_u
+          hycom_fld_type("v10    ","inst_merid_wind_height_lowest","m s-1     "), & !02 Sa_v
+          hycom_fld_type("taux10 ","mean_zonal_moment_flx        ","N m-2     "), & !03 Faxa_taux
+          hycom_fld_type("tauy10 ","mean_merid_moment_flx        ","N m-2     "), & !04 Faxa_tauy
+          hycom_fld_type("airtmp ","inst_temp_height_lowest      ","K         "), & !05 Sa_tbot
+          hycom_fld_type("airhum ","inst_spec_humid_height_lowest","kg kg-1   "), & !06 Sa_shum
+          hycom_fld_type("prcp   ","mean_prec_rate               ","kg m-2 s-1"), & !07 Faxa_rain
+          hycom_fld_type("swflxd ","mean_net_sw_flx              ","W m-2     "), & !08 Foxx_swnet
+          hycom_fld_type("lwflxd ","mean_net_lw_flx              ","W m-2     "), & !09 Foxx_lwnet
+          hycom_fld_type("mslprs ","inst_pres_height_surface     ","Pa        "), & !10 Sa_pslv
+          hycom_fld_type("gt     ","inst_temp_skin_temperature   ","K         "), & !11 Sa_tskn
+          hycom_fld_type("sensflx","mean_sensi_heat_flx          ","W m-2     "), & !12 Foxx_sen
+          hycom_fld_type("latflx ","mean_laten_heat_flx          ","W m-2     ")  & !13 Foxx_lat
         /)
       end if
-
       ! Set export fields
       if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(5))
-
-      dfltFldsExp = (/                                                        &
-        hycom_fld_type("sst","sea_surface_temperature",                       & !01 So_t
-                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),           &
-        hycom_fld_type("mask","ocean_mask",                                   & !02 So_omask
-                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),           &
-        hycom_fld_type("cpl_scalars","cpl_scalars",                           & !03 cpl_scalars
-                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),           &
-        hycom_fld_type("ssu","ocn_current_zonal",                             & !04 So_u
-                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),           &
-        hycom_fld_type("ssv","ocn_current_merid",                             & !05 So_v
-                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1)            &
+      dfltFldsExp = (/ &
+        hycom_fld_type("sst        ","sea_surface_temperature","K"), & !01 So_t
+        hycom_fld_type("mask       ","ocean_mask             ","1"), & !02 So_omask
+        hycom_fld_type("cpl_scalars","cpl_scalars            ","1"), & !03 cpl_scalars
+        hycom_fld_type("ssu        ","ocn_current_zonal      ","1"), & !04 So_u
+        hycom_fld_type("ssv        ","ocn_current_merid      ","1")  & !05 So_v
       /)
     else
       ! Set import fields
-      if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(11))
-
+      if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(13))
       dfltFldsImp = (/ &
-        hycom_fld_type("u10","inst_zonal_wind_height10m",&                    !01
-                       "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("v10","inst_merid_wind_height10m",&                    !02
-                       "m s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("taux10","mean_zonal_moment_flx_atm",&                 !03
-                       "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("tauy10","mean_merid_moment_flx_atm",&                 !04
-                       "N m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("airtmp","inst_temp_height2m",&                        !05
-                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("airhum","inst_spec_humid_height2m",&                  !06
-                       "kg kg-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("prcp","mean_prec_rate",&                              !07
-                       "kg m-2 s-1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("swflxd","mean_net_sw_flx",&                           !08
-                       "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("lwflxd","mean_net_lw_flx",&                           !09
-                       "W m-2",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("mslprs","inst_pres_height_surface",&                  !10
-                       "Pa",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("gt","inst_temp_height_surface",&                      !11
-                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1) &
+        hycom_fld_type("u10    ","inst_zonal_wind_height10m","m s-1     "), & !01
+        hycom_fld_type("v10    ","inst_merid_wind_height10m","m s-1     "), & !02
+        hycom_fld_type("taux10 ","mean_zonal_moment_flx_atm","N m-2     "), & !03
+        hycom_fld_type("tauy10 ","mean_merid_moment_flx_atm","N m-2     "), & !04
+        hycom_fld_type("airtmp ","inst_temp_height2m       ","K         "), & !05
+        hycom_fld_type("airhum ","inst_spec_humid_height2m ","kg kg-1   "), & !06
+        hycom_fld_type("prcp   ","mean_prec_rate           ","kg m-2 s-1"), & !07
+        hycom_fld_type("swflxd ","mean_net_sw_flx          ","W m-2     "), & !08
+        hycom_fld_type("lwflxd ","mean_net_lw_flx          ","W m-2     "), & !09
+        hycom_fld_type("mslprs ","inst_pres_height_surface ","Pa        "), & !10
+        hycom_fld_type("gt     ","inst_temp_height_surface ","K         "), & !11
+        hycom_fld_type("sensflx","mean_sensi_heat_flx      ","W m-2     "), & !12
+        hycom_fld_type("latflx ","mean_laten_heat_flx      ","W m-2     ")  & !13
       /)
-
       ! Set export fields
       if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(2))
-
       dfltFldsExp = (/ &
-        hycom_fld_type("sst","sea_surface_temperature",&                      !01
-                       "K",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1),&
-        hycom_fld_type("mask","ocean_mask",&                                  !02
-                       "1",.TRUE.,FLD_REMAP_BILINR,FLD_MASK_NNE,1) &
+        hycom_fld_type("sst ","sea_surface_temperature","K"), & !01
+        hycom_fld_type("mask","ocean_mask             ","1")  & !02
       /)
     end if
   end subroutine set_impexp_fields
@@ -257,7 +176,7 @@ module read_impexp_config_mod
     integer                            :: tokenCount
     type(hycom_fld_type),allocatable   :: fldsExp(:)
     type(hycom_fld_type),allocatable   :: fldsImp(:)
-    character(len=NUOPC_FreeFormatLen) :: tokenList(7)
+    character(len=NUOPC_FreeFormatLen),allocatable :: tokenList(:)
     integer                            :: i,j
     integer                            :: stat
 
@@ -289,29 +208,35 @@ module read_impexp_config_mod
         tokenCount=tokenCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
         msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
-      if (tokenCount.ne.7) then
+      if (.not.((tokenCount.eq.3).or.(tokenCount.eq.6))) then
         call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
-          msg="Malformed field list item FORMAT="// &
-            "'NAME' 'STANDARD_NAME' 'UNITS' 'ENABLED' "// &
-            "'MAPPING_TYPE' 'MASKING_FLAG' 'FILL_VALUE' in "//trim(fname), &
+          msg="Malformed ocn_export_fields item FORMAT="// &
+            "'HYCOM_NAME' 'STANDARD_NAME' 'UNITS' "// &
+!            "['MINVAL' 'MAXVAL' 'FILLVAL'] "// &
+            "in file: "//trim(fname), &
           CONTEXT, rcToReturn=rc)
         return ! bail out
       endif
+      allocate(tokenList(tokenCount))
       call NUOPC_FreeFormatGetLine(attrFF, line=i, tokenList=tokenList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
         msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
       fldsExp(i)%fieldName=tokenList(1)
       fldsExp(i)%standName=tokenList(2)
       fldsExp(i)%fieldUnit=tokenList(3)
-      tokenList(4) = ESMF_UtilStringUpperCase(tokenList(4), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
-      fldsExp(i)%fieldEnable=(tokenList(4).eq.".TRUE.")
-      fldsExp(i)%mapping=tokenList(5)
-      fldsExp(i)%mask=tokenList(6)
-      fldsExp(i)%fillValue = ESMF_UtilString2Real(tokenList(7), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      if (tokenCount.eq.6) then
+        fldsExp(i)%minValue = ESMF_UtilString2Real(tokenList(4), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+        fldsExp(i)%maxValue = ESMF_UtilString2Real(tokenList(5), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+        fldsExp(i)%fillValue = ESMF_UtilString2Real(tokenList(6), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      endif
+      fldsExp(i)%fieldEnable=.true.
+      deallocate(tokenList)
     enddo
     call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
@@ -335,29 +260,35 @@ module read_impexp_config_mod
         tokenCount=tokenCount, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
         msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
-      if (tokenCount.ne.7) then
+      if (.not.((tokenCount.eq.3).or.(tokenCount.eq.6))) then
         call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
-          msg="Malformed field list item FORMAT="// &
-            "'NAME' 'STANDARD_NAME' 'UNITS' 'ENABLED' "// &
-            "'MAPPING_TYPE' 'MASKING_FLAG' 'FILL_VALUE' in "//trim(fname), &
+          msg="Malformed ocn_import_fields FORMAT="// &
+            "'HYCOM_NAME' 'STANDARD_NAME' 'UNITS' "// &
+!            "['MINVAL' 'MAXVAL' 'FILLVAL'] "// &
+            "in file: "//trim(fname), &
           CONTEXT, rcToReturn=rc)
         return ! bail out
       endif
+      allocate(tokenList(tokenCount))
       call NUOPC_FreeFormatGetLine(attrFF, line=i, tokenList=tokenList, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
         msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
       fldsImp(i)%fieldName=tokenList(1)
       fldsImp(i)%standName=tokenList(2)
       fldsImp(i)%fieldUnit=tokenList(3)
-      tokenList(4) = ESMF_UtilStringUpperCase(tokenList(4), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
-      fldsImp(i)%fieldEnable=(tokenList(4).eq.".TRUE.")
-      fldsImp(i)%mapping=tokenList(5)
-      fldsImp(i)%mask=tokenList(6)
-      fldsImp(i)%fillValue = ESMF_UtilString2Real(tokenList(7), rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, &
-        msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      if (tokenCount.eq.6) then
+        fldsImp(i)%minValue = ESMF_UtilString2Real(tokenList(4), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+        fldsImp(i)%maxValue = ESMF_UtilString2Real(tokenList(5), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+        fldsImp(i)%fillValue = ESMF_UtilString2Real(tokenList(6), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
+      endif
+      fldsImp(i)%fieldEnable=.true.
+      deallocate(tokenList)
     enddo
     call NUOPC_FreeFormatDestroy(attrFF, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
@@ -489,92 +420,6 @@ module read_impexp_config_mod
   end subroutine read_impexp_config_list
 
   !-----------------------------------------------------------------------------
-
-  function field_rfeq(rf1, rf2)
-    logical field_rfeq
-    type(fieldRemapFlag), intent(in) :: rf1, rf2
-    field_rfeq = (rf1%remap == rf2%remap)
-  end function field_rfeq
-
-  !-----------------------------------------------------------------------------
-
-  subroutine field_rfas_string(string, rfval)
-    character(len=*), intent(out) :: string
-    type(fieldRemapFlag), intent(in) :: rfval
-    if (rfval == FLD_REMAP_UNKOWN) then
-      write(string,'(a)') 'FLD_REMAP_UNKOWN'
-    elseif (rfval == FLD_REMAP_REDIST) then
-      write(string,'(a)') 'FLD_REMAP_REDIST'
-    elseif (rfval == FLD_REMAP_BILINR) then
-      write(string,'(a)') 'FLD_REMAP_BILINR'
-    elseif (rfval == FLD_REMAP_CONSRV) then
-      write(string,'(a)') 'FLD_REMAP_CONSRV'
-    else
-      write(string,'(a)') 'FLD_REMAP_ERROR'
-    endif
-  end subroutine field_rfas_string
-
-  !-----------------------------------------------------------------------------
-
-  subroutine field_stringas_rf(rfval, string)
-    type(fieldRemapFlag), intent(out) :: rfval
-    character(len=*), intent(in) :: string
-    if (string .eq. 'FLD_REMAP_UNKOWN') then
-      rfval = FLD_REMAP_UNKOWN
-    elseif (string .eq. 'FLD_REMAP_REDIST') then
-      rfval = FLD_REMAP_REDIST
-    elseif (string .eq.'FLD_REMAP_BILINR') then
-      rfval = FLD_REMAP_BILINR
-    elseif (string .eq. 'FLD_REMAP_CONSRV') then
-      rfval = FLD_REMAP_CONSRV
-    else
-      rfval = FLD_REMAP_ERROR
-    endif
-  end subroutine field_stringas_rf
-
-  !-----------------------------------------------------------------------------
-
-  function field_mfeq(mf1, mf2)
-    logical field_mfeq
-    type(fieldMaskFlag), intent(in) :: mf1, mf2
-    field_mfeq = (mf1%mask == mf2%mask)
-  end function field_mfeq
-
-  !-----------------------------------------------------------------------------
-
-  subroutine field_mfas_string(string, mfval)
-    character(len=*), intent(out) :: string
-    type(fieldMaskFlag), intent(in) :: mfval
-    if (mfval == FLD_MASK_UNK) then
-      write(string,'(a)') 'FLD_MASK_UNK'
-    elseif (mfval == FLD_MASK_NNE) then
-      write(string,'(a)') 'FLD_MASK_NNE'
-    elseif (mfval == FLD_MASK_LND) then
-      write(string,'(a)') 'FLD_MASK_LND'
-    elseif (mfval == FLD_MASK_WTR) then
-      write(string,'(a)') 'FLD_MASK_WTR'
-    else
-      write(string,'(a)') 'FLD_MASK_ERR'
-    endif
-  end subroutine field_mfas_string
-
-  !-----------------------------------------------------------------------------
-
-  subroutine field_stringas_mf(mfval,string)
-    type(fieldMaskFlag), intent(out) :: mfval
-    character(len=*), intent(in) :: string
-    if (string .eq. 'FLD_MASK_UNK') then
-      mfval = FLD_MASK_UNK
-    elseif (string .eq. 'FLD_MASK_NNE') then
-      mfval = FLD_MASK_NNE
-    elseif (string .eq. 'FLD_MASK_LND') then
-      mfval = FLD_MASK_LND
-    elseif (string .eq. 'FLD_MASK_WTR') then
-      mfval = FLD_MASK_WTR
-    else
-      mfval = FLD_MASK_ERR
-    endif
-  end subroutine field_stringas_mf
 
 !===============================================================================
 end module read_impexp_config_mod

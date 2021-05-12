@@ -719,7 +719,9 @@ module HYCOM_Mod
 #endif
 
 #ifdef ESPC_COUPLE
-    if (ocn_impexp_file.eq."dummy_file") then
+    if ((ocn_impexp_file.eq."dummy_file").or. &
+        (ocn_impexp_file.eq."none      ").or. &
+        (ocn_impexp_file.eq."          ")) then
       call read_impexp_config(numExpFields,numImpFields,&
         expFieldName,impFieldName,expStandName,impStandName,expFieldUnit,&
         impFieldUnit,expFieldEnable,impFieldEnable,rc=rc)
