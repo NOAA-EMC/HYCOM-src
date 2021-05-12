@@ -48,6 +48,7 @@ module HYCOM_Mod
   use ESMF
   use NUOPC
   use HYCOM_ESMF_Extensions
+  use hycom_nuopc_flags
   use NUOPC_Model, only: &
     model_routine_SS    => SetServices, &
     model_label_Advance => label_Advance, &
@@ -120,6 +121,7 @@ module HYCOM_Mod
   real              :: endtime
   integer           :: itdmx, jtdmx
   logical           :: show_minmax
+  type(import_flag) :: import_setting
   logical           :: import_diagnostics
   logical           :: merge_all_import
   logical           :: skip_first_import
@@ -509,6 +511,13 @@ module HYCOM_Mod
       show_minmax = (trim(value)==".true.")
 
       call ESMF_AttributeGet(model, value=value, &
+        name="import_setting", defaultvalue="ADAPTABLE", &
+        convention="NUOPC", purpose="Instance", rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, &
+        msg="attribute get import_setting failed", CONTEXT)) return
+      import_setting=value
+
+      call ESMF_AttributeGet(model, value=value, &
         name="import_diagnostics", defaultvalue=".false.", &
         convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
@@ -620,6 +629,10 @@ module HYCOM_Mod
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
           'Show MinMax            = ',show_minmax
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        value=import_setting
+        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
+          'Import Setting         = ',trim(value)
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
           'Import Diagnostics     = ',import_diagnostics
@@ -746,13 +759,16 @@ module HYCOM_Mod
       (impFieldEnable(i),i=1,numImpFields)
 
     do i=1,numImpFields
-      if (impFieldEnable(i)) then
-        if (lPet.eq.0) print *,"hycom,import field advertised, name=", &
-          impFieldName(i),impStandName(i)
-
-        call NUOPC_Advertise(importState, name=impFieldName(i), &
-        StandardName=impStandName(i), rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
+      if(import_setting.eq.IMPORT_UNCOUPLED) then
+        impFieldEnable(i)=.false.
+      else
+        if (impFieldEnable(i)) then
+          if (lPet.eq.0) print *,"hycom,import field advertised, name=", &
+            impFieldName(i),impStandName(i)
+          call NUOPC_Advertise(importState, name=impFieldName(i), &
+            StandardName=impStandName(i), rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+        endif
       endif
     enddo
 
@@ -883,17 +899,6 @@ module HYCOM_Mod
 
 !   call into ocean init
     call HYCOM_Init(mpiCommunicator,h_start_dtg,h_end_dtg)
-
-#ifdef ESPC_COUPLE
-!!Alex    call ocn_import_init()
-    do i=1,numImpFields
-      if (impFieldEnable(i)) then
-        call set_hycom_import_flag(i,impFieldName(i),rc=rc)
-        if (ESMF_LogFoundError(rcToCheck=rc, &
-          msg="set_hycom_import_flag failed", CONTEXT)) return
-      endif
-    enddo
-#endif
 
     call hycom_couple_init(nPets,import_diagnostics,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg="hycom_couple_init failed", &
@@ -1214,14 +1219,25 @@ module HYCOM_Mod
           call NUOPC_Realize(importState, field=impField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         else
-          if (lPet.eq.0) print *,"hycom, import field disabled, name=", &
-            impFieldName(i)
-
-          impFieldEnable(i) = .false.
-          call ESMF_StateRemove(importState, (/impFieldName(i)/), &
-            relaxedflag=.true., rc=rc)
-          if (ESMF_STDERRORCHECK(rc)) return
+          if(import_setting.eq.IMPORT_ADAPTABLE) then
+            if (lPet.eq.0) print *,"hycom, import field disabled, name=", &
+              impFieldName(i)
+            impFieldEnable(i) = .false.
+            call ESMF_StateRemove(importState, (/impFieldName(i)/), &
+              relaxedflag=.true., rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+          else
+            call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+              msg="ERROR: hycom, import field required: "//trim(impFieldName(i)), &
+              CONTEXT, rcToReturn=rc)
+            return ! bail out
+          endif
         endif
+      endif
+      if (impFieldEnable(i)) then
+        call set_hycom_import_flag(impFieldName(i),rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, &
+          msg="set_hycom_import_flag failed", CONTEXT)) return
       endif
     enddo
 
@@ -1252,8 +1268,6 @@ module HYCOM_Mod
 
           call NUOPC_Realize(exportState, field=expField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
-          if (lPet.eq.0) print *,"hycom, export field done creating, name=", &
-            expFieldName(i)
 
           if (expFieldName(i).eq."mask") then
             nullify(msk_fptr)
@@ -1866,10 +1880,6 @@ module HYCOM_Mod
 #endif
 
 !===============================================================================
-#if defined ESPC_OCN
-end module OCEAN_Mod
-#else
 end module HYCOM_Mod
-#endif
 !===============================================================================
 

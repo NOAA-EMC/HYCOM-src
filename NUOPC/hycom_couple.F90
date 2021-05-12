@@ -170,8 +170,44 @@ module hycom_couple
     enddo
     call xcaget(cpldom%mask_q, tmx, 1)
 
+!   initialize couple flags
     cpl_merge = .false.
     cpl_diag = diag
+    calc_wndspd=.false.
+    calc_radflx=.false.
+    cpl_taux=.false.
+    cpl_tauy=.false.
+    cpl_u10=.false.
+    cpl_v10=.false.
+    cpl_wndspd=.false.
+    cpl_ustara=.false.
+    cpl_airtmp=.false.
+    cpl_vapmix=.false.
+    cpl_swflx_net=.false.
+    cpl_lwflx_net=.false.
+    cpl_swflx_net2down=.false.
+    cpl_lwflx_net2down=.false.
+    cpl_swflxd=.false.
+    cpl_lwflxd=.false.
+    cpl_mslprs=.false.
+    cpl_precip=.false.
+    cpl_surtmp=.false.
+    cpl_seatmp=.false.
+    cpl_sbhflx=.false.
+    cpl_sensflx=.false.
+    cpl_lthflx=.false.
+    cpl_latflx=.false.
+    cpl_sic=.false.
+    cpl_sitx=.false.
+    cpl_sity=.false.
+    cpl_siqs=.false.
+    cpl_sifh=.false.
+    cpl_sifs=.false.
+    cpl_sifw=.false.
+    cpl_sit=.false.
+    cpl_sih=.false.
+    cpl_siu=.false.
+    cpl_siv=.false.
 
     if (mnproc.eq.1) print *, rname//" end..."
 
@@ -179,9 +215,8 @@ module hycom_couple
 
   !-----------------------------------------------------------------------------
 
-  subroutine set_hycom_import_flag(k, fieldName, rc)
+  subroutine set_hycom_import_flag(fieldName, rc)
 !   arguments
-    integer, intent(in)           :: k
     character(len=30), intent(in) :: fieldName
     integer, intent(out)          :: rc
 !   local variables
@@ -189,46 +224,7 @@ module hycom_couple
 
     rc = 0 ! success
 
-    if (mnproc.eq.1) print *, rname//" start...,k,name=", k, fieldName
-
-!   initialize couple flags when field index is 1
-    if (k.eq.1) then
-      calc_wndspd=.false.
-      calc_radflx=.false.
-      cpl_taux=.false.
-      cpl_tauy=.false.
-      cpl_u10=.false.
-      cpl_v10=.false.
-      cpl_wndspd=.false.
-      cpl_ustara=.false.
-      cpl_airtmp=.false.
-      cpl_vapmix=.false.
-      cpl_swflx_net=.false.
-      cpl_lwflx_net=.false.
-      cpl_swflx_net2down=.false.
-      cpl_lwflx_net2down=.false.
-      cpl_swflxd=.false.
-      cpl_lwflxd=.false.
-      cpl_mslprs=.false.
-      cpl_precip=.false.
-      cpl_surtmp=.false.
-      cpl_seatmp=.false.
-      cpl_sbhflx=.false.
-      cpl_sensflx=.false.
-      cpl_lthflx=.false.
-      cpl_latflx=.false.
-      cpl_sic=.false.
-      cpl_sitx=.false.
-      cpl_sity=.false.
-      cpl_siqs=.false.
-      cpl_sifh=.false.
-      cpl_sifs=.false.
-      cpl_sifw=.false.
-      cpl_sit=.false.
-      cpl_sih=.false.
-      cpl_siu=.false.
-      cpl_siv=.false.
-    endif
+    if (mnproc.eq.1) print *, rname//" start...,name=", fieldName
 
 !   set couple flags based on fieldnames
     if (fieldName.eq.'taux10') then
