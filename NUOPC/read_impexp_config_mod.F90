@@ -19,7 +19,7 @@ module read_impexp_config_mod
 !===============================================================================
   use ESMF
   use NUOPC
-  use mod_hycom, only: mediator_type, atm_model_type
+  use hycom_nuopc_flags
 
 !===============================================================================
 ! settings
@@ -63,77 +63,67 @@ module read_impexp_config_mod
 !===============================================================================
   contains
 !===============================================================================
-  subroutine set_impexp_fields()
+  subroutine set_impexp_fields(atm_model, cpl_scalars)
+    type(model_flag),intent(in) :: atm_model
+    logical, intent(in)         :: cpl_scalars
 
-    if (trim(mediator_type) == "cmeps") then
-      ! Set import fields
-      if (trim(atm_model_type) == "datm") then
-        if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(11))
-        dfltFldsImp = (/ &
-          hycom_fld_type("taux10   ","mean_zonal_moment_flx        ","N m-2     "), & !01 Faxa_taux
-          hycom_fld_type("tauy10   ","mean_merid_moment_flx        ","N m-2     "), & !02 Faxa_tauy
-          hycom_fld_type("airtmp   ","inst_temp_height_lowest      ","K         "), & !03 Sa_tbot
-          hycom_fld_type("airhum   ","inst_spec_humid_height_lowest","kg kg-1   "), & !04 Sa_shum
-          hycom_fld_type("prcp     ","mean_prec_rate               ","kg m-2 s-1"), & !05 Faxa_rain
-          hycom_fld_type("mslprs   ","inst_pres_height_surface     ","Pa        "), & !06 Sa_pslv
-          hycom_fld_type("swflx_net","mean_net_sw_flx              ","W m-2     "), & !07 Foxx_swnet
-          hycom_fld_type("lwflx_net","mean_net_lw_flx              ","W m-2     "), & !08 Foxx_lwnet
-          hycom_fld_type("wndspd10 ","inst_wind_speed_height_lowest","m s-1     "), & !09 Sa_wspd
-          hycom_fld_type("gt       ","inst_temp_skin_temperature   ","K         "), & !10 Sa_tskn
-          hycom_fld_type("sic      ","ice_fraction                 ","1         ")  & !11 Si_ifrac
-        /)
-      else
-        if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(13))
-        dfltFldsImp = (/ &
-          hycom_fld_type("u10    ","inst_zonal_wind_height_lowest","m s-1     "), & !01 Sa_u
-          hycom_fld_type("v10    ","inst_merid_wind_height_lowest","m s-1     "), & !02 Sa_v
-          hycom_fld_type("taux10 ","mean_zonal_moment_flx        ","N m-2     "), & !03 Faxa_taux
-          hycom_fld_type("tauy10 ","mean_merid_moment_flx        ","N m-2     "), & !04 Faxa_tauy
-          hycom_fld_type("airtmp ","inst_temp_height_lowest      ","K         "), & !05 Sa_tbot
-          hycom_fld_type("airhum ","inst_spec_humid_height_lowest","kg kg-1   "), & !06 Sa_shum
-          hycom_fld_type("prcp   ","mean_prec_rate               ","kg m-2 s-1"), & !07 Faxa_rain
-          hycom_fld_type("swflxd ","mean_net_sw_flx              ","W m-2     "), & !08 Foxx_swnet
-          hycom_fld_type("lwflxd ","mean_net_lw_flx              ","W m-2     "), & !09 Foxx_lwnet
-          hycom_fld_type("mslprs ","inst_pres_height_surface     ","Pa        "), & !10 Sa_pslv
-          hycom_fld_type("gt     ","inst_temp_skin_temperature   ","K         "), & !11 Sa_tskn
-          hycom_fld_type("sensflx","mean_sensi_heat_flx          ","W m-2     "), & !12 Foxx_sen
-          hycom_fld_type("latflx ","mean_laten_heat_flx          ","W m-2     ")  & !13 Foxx_lat
-        /)
-      end if
-      ! Set export fields
-      if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(5))
+    ! create default import fields
+    if (allocated(dfltFldsImp)) deallocate(dfltFldsImp)
+    if (atm_model.eq.MODEL_DATM) then
+      allocate(dfltFldsImp(11))
+      dfltFldsImp = (/ &
+        hycom_fld_type("taux10   ","mean_zonal_moment_flx        ","N m-2     "), & !01 Faxa_taux
+        hycom_fld_type("tauy10   ","mean_merid_moment_flx        ","N m-2     "), & !02 Faxa_tauy
+        hycom_fld_type("airtmp   ","inst_temp_height_lowest      ","K         "), & !03 Sa_tbot
+        hycom_fld_type("airhum   ","inst_spec_humid_height_lowest","kg kg-1   "), & !04 Sa_shum
+        hycom_fld_type("prcp     ","mean_prec_rate               ","kg m-2 s-1"), & !05 Faxa_rain
+        hycom_fld_type("mslprs   ","inst_pres_height_surface     ","Pa        "), & !06 Sa_pslv
+        hycom_fld_type("swflx_net","mean_net_sw_flx              ","W m-2     "), & !07 Foxx_swnet
+        hycom_fld_type("lwflx_net","mean_net_lw_flx              ","W m-2     "), & !08 Foxx_lwnet
+        hycom_fld_type("wndspd10 ","inst_wind_speed_height_lowest","m s-1     "), & !09 Sa_wspd
+        hycom_fld_type("gt       ","inst_temp_skin_temperature   ","K         "), & !10 Sa_tskn
+        hycom_fld_type("sic      ","ice_fraction                 ","1         ")  & !11 Si_ifrac
+      /)
+    else
+      allocate(dfltFldsImp(13))
+      dfltFldsImp = (/ &
+        hycom_fld_type("u10    ","inst_zonal_wind_height10m","m s-1     "), & !01 Sa_u10m
+        hycom_fld_type("v10    ","inst_merid_wind_height10m","m s-1     "), & !02 Sa_v10m
+        hycom_fld_type("taux10 ","mean_zonal_moment_flx_atm","N m-2     "), & !03 Faxa_taux
+        hycom_fld_type("tauy10 ","mean_merid_moment_flx_atm","N m-2     "), & !04 Faxa_tauy
+        hycom_fld_type("airtmp ","inst_temp_height2m       ","K         "), & !05 Sa_t2m
+        hycom_fld_type("airhum ","inst_spec_humid_height2m ","kg kg-1   "), & !06 Sa_q2m
+        hycom_fld_type("prcp   ","mean_prec_rate           ","kg m-2 s-1"), & !07 Faxa_rain
+        hycom_fld_type("swflxd ","mean_net_sw_flx          ","W m-2     "), & !08 Faxa_swnet
+        hycom_fld_type("lwflxd ","mean_net_lw_flx          ","W m-2     "), & !09 Faxa_lwnet
+        hycom_fld_type("mslprs ","inst_pres_height_surface ","Pa        "), & !10 Sa_pslv
+        hycom_fld_type("gt     ","inst_temp_height_surface ","K         "), & !11 Sa_tskn
+        hycom_fld_type("sensflx","mean_sensi_heat_flx      ","W m-2     "), & !12 Faxa_sen
+        hycom_fld_type("latflx ","mean_laten_heat_flx      ","W m-2     ")  & !13 Faxa_lat
+      /)
+    end if
+
+    ! create default export fields
+    if (allocated(dfltFldsExp)) deallocate(dfltFldsExp)
+    if (cpl_scalars) then
+      allocate(dfltFldsExp(5))
       dfltFldsExp = (/ &
         hycom_fld_type("sst        ","sea_surface_temperature","K"), & !01 So_t
         hycom_fld_type("mask       ","ocean_mask             ","1"), & !02 So_omask
-        hycom_fld_type("cpl_scalars","cpl_scalars            ","1"), & !03 cpl_scalars
-        hycom_fld_type("ssu        ","ocn_current_zonal      ","1"), & !04 So_u
-        hycom_fld_type("ssv        ","ocn_current_merid      ","1")  & !05 So_v
+        hycom_fld_type("ssu        ","ocn_current_zonal      ","1"), & !03 So_u
+        hycom_fld_type("ssv        ","ocn_current_merid      ","1"), & !04 So_v
+        hycom_fld_type("cpl_scalars","cpl_scalars            ","1")  & !05 cpl_scalars
       /)
     else
-      ! Set import fields
-      if (.not. allocated(dfltFldsImp)) allocate(dfltFldsImp(13))
-      dfltFldsImp = (/ &
-        hycom_fld_type("u10    ","inst_zonal_wind_height10m","m s-1     "), & !01
-        hycom_fld_type("v10    ","inst_merid_wind_height10m","m s-1     "), & !02
-        hycom_fld_type("taux10 ","mean_zonal_moment_flx_atm","N m-2     "), & !03
-        hycom_fld_type("tauy10 ","mean_merid_moment_flx_atm","N m-2     "), & !04
-        hycom_fld_type("airtmp ","inst_temp_height2m       ","K         "), & !05
-        hycom_fld_type("airhum ","inst_spec_humid_height2m ","kg kg-1   "), & !06
-        hycom_fld_type("prcp   ","mean_prec_rate           ","kg m-2 s-1"), & !07
-        hycom_fld_type("swflxd ","mean_net_sw_flx          ","W m-2     "), & !08
-        hycom_fld_type("lwflxd ","mean_net_lw_flx          ","W m-2     "), & !09
-        hycom_fld_type("mslprs ","inst_pres_height_surface ","Pa        "), & !10
-        hycom_fld_type("gt     ","inst_temp_height_surface ","K         "), & !11
-        hycom_fld_type("sensflx","mean_sensi_heat_flx      ","W m-2     "), & !12
-        hycom_fld_type("latflx ","mean_laten_heat_flx      ","W m-2     ")  & !13
-      /)
-      ! Set export fields
-      if (.not. allocated(dfltFldsExp)) allocate(dfltFldsExp(2))
+      allocate(dfltFldsExp(4))
       dfltFldsExp = (/ &
-        hycom_fld_type("sst ","sea_surface_temperature","K"), & !01
-        hycom_fld_type("mask","ocean_mask             ","1")  & !02
+        hycom_fld_type("sst ","sea_surface_temperature","K"), & !01 So_t
+        hycom_fld_type("mask","ocean_mask             ","1"), & !02 So_omask
+        hycom_fld_type("ssu ","ocn_current_zonal      ","1"), & !03 So_u
+        hycom_fld_type("ssv ","ocn_current_merid      ","1")  & !04 So_v
       /)
     end if
+
   end subroutine set_impexp_fields
 
   subroutine read_impexp_config_dflt(numExpFields,numImpFields, &

@@ -69,12 +69,6 @@ module HYCOM_Mod
                           ocn_import_forcing, &
                           hycom_couple_final
   use mod_import, only: hycom_imp_reset
-  use mod_hycom, only: scalar_field_name, &
-                       scalar_field_count, &
-                       scalar_field_idx_grid_nx, &
-                       scalar_field_idx_grid_ny, &
-                       mediator_type, &
-                       atm_model_type
 #ifdef ESPC_COUPLE
   use read_impexp_config_mod
   use impexpField_cdf_mod
@@ -125,6 +119,13 @@ module HYCOM_Mod
   logical           :: import_diagnostics
   logical           :: merge_all_import
   logical           :: skip_first_import
+  integer           :: mask_field_id            = 0
+  integer           :: scalar_field_id          = 0
+  character(len=60) :: scalar_field_name        = 'cpl_scalars'
+  integer           :: scalar_field_count       = 0
+  integer           :: scalar_field_idx_grid_nx = 0
+  integer           :: scalar_field_idx_grid_ny = 0
+  type(model_flag)  :: atm_model                = MODEL_DEFAULT
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
@@ -197,7 +198,6 @@ module HYCOM_Mod
     character(len=64)       :: value
     integer                 :: stat
     logical                 :: isPresent, isSet
-    integer                 :: iostat
 
     rc = ESMF_SUCCESS
 
@@ -229,79 +229,9 @@ module HYCOM_Mod
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-    ! Coupled with CMEPS mediator?
-    call NUOPC_CompAttributeGet(model, name="ScalarFieldName", &
-      isPresent=isPresent, isSet=isSet, rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-    if (isPresent .and. isSet) then
-      call NUOPC_CompAttributeGet(model, name="ScalarFieldName", value=value, rc=rc)
-      scalar_field_name = trim(value)
-      mediator_type = "cmeps"
-      call ESMF_LogWrite('ScalarFieldName = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
-    end if
-
-    call ESMF_LogWrite('MED = '//trim(mediator_type), ESMF_LOGMSG_INFO, rc=rc)
-
-    ! Using data atmosphere or not?
-    call NUOPC_CompAttributeGet(model, name="ATM_model", &
-      isPresent=isPresent, isSet=isSet, rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-    if (isPresent .and. isSet) then
-      call NUOPC_CompAttributeGet(model, name="ATM_model", value=atm_model_type, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      call ESMF_LogWrite('ATM_model = '//trim(atm_model_type), ESMF_LOGMSG_INFO, rc=rc)
-    end if
-
-    ! Retrieve CMEPS specific attributes
-    if (trim(mediator_type) .eq. "cmeps") then
-      scalar_field_count = 0
-      call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", value=value, &
-        isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      if (isPresent .and. isSet) then
-        read(value, '(i)', iostat=iostat) scalar_field_count
-        if (iostat /= 0) then
-          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-            msg=": ScalarFieldCount not an integer: "//trim(value), &
-            line=__LINE__, file=__FILE__, rcToReturn=rc)
-          return
-        end if
-        call ESMF_LogWrite('ScalarFieldCount = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
-      end if
-
-      scalar_field_idx_grid_nx = 0
-      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", value=value, &
-        isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      if (isPresent .and. isSet) then
-        read(value, '(i)', iostat=iostat) scalar_field_idx_grid_nx
-        if (iostat /= 0) then
-          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-            msg=": ScalarFieldIdxGridNX not an integer: "//trim(value), &
-            line=__LINE__, file=__FILE__, rcToReturn=rc)
-          return
-        end if
-        call ESMF_LogWrite('ScalarFieldIdxGridNX = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
-      end if
-
-      scalar_field_idx_grid_ny = 0
-      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", value=value, &
-        isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      if (isPresent .and. isSet) then
-        read(value, '(i)', iostat=iostat) scalar_field_idx_grid_ny
-        if (iostat /= 0) then
-          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-            msg="ScalarFieldIdxGridNY not an integer: "//trim(value), &
-            line=__LINE__, file=__FILE__, rcToReturn=rc)
-          return
-        end if
-        call ESMF_LogWrite('ScalarFieldIdxGridNY = '//trim(value), ESMF_LOGMSG_INFO, rc=rc)
-      end if
-    end if
-
     ! Set import/export field list
-    call set_impexp_fields()
+    call set_impexp_fields(atm_model=atm_model, &
+      cpl_scalars=(scalar_field_count.gt.0))
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -511,7 +441,7 @@ module HYCOM_Mod
       show_minmax = (trim(value)==".true.")
 
       call ESMF_AttributeGet(model, value=value, &
-        name="import_setting", defaultvalue="ADAPTABLE", &
+        name="import_setting", defaultvalue="FLEXIBLE", &
         convention="NUOPC", purpose="Instance", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, &
         msg="attribute get import_setting failed", CONTEXT)) return
@@ -591,78 +521,166 @@ module HYCOM_Mod
       end_sec = ESMF_UtilString2Int(value, rc=rc)
       if (ESMF_STDERRORCHECK(rc)) return
 
+      ! get atmosphere model type
+      call NUOPC_CompAttributeGet(model, name="ATM_model", &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(model, name="ATM_model", &
+          value=value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        atm_model=trim(value)
+      end if
+
+      ! get scalar field name
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldName", &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(model, name="ScalarFieldName", &
+          value=value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        scalar_field_name = trim(value)
+        if (len_trim(scalar_field_name).le.0) then
+          call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+            msg=rname//": ERROR ScalarFieldName cannot be blank", &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return
+        endif
+      else
+        scalar_field_name = "cpl_scalars"
+      end if
+
+      ! get scalar field count
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(model, name="ScalarFieldCount", &
+          value=value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        scalar_field_count = ESMF_UtilString2Int(value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+      else
+        scalar_field_count = 0
+      end if
+
+      ! get scalar field id GridNX
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNX", &
+          value=value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        scalar_field_idx_grid_nx = ESMF_UtilString2Int(value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+      else
+        scalar_field_idx_grid_nx = 0
+      end if
+
+      ! get scalar field id GridNY
+      call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", &
+        isPresent=isPresent, isSet=isSet, rc=rc)
+      if (ESMF_STDERRORCHECK(rc)) return
+      if (isPresent .and. isSet) then
+        call NUOPC_CompAttributeGet(model, name="ScalarFieldIdxGridNY", &
+          value=value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+        scalar_field_idx_grid_ny = ESMF_UtilString2Int(value, rc=rc)
+        if (ESMF_STDERRORCHECK(rc)) return
+      else
+        scalar_field_idx_grid_ny = 0
+      end if
+
 !     log configuration settings
       if (btest(verbosity,16)) then
         call ESMF_LogWrite(trim(cname)//": Settings",ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Verbosity              = ',verbosity
+          'Verbosity               = ',verbosity
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Diagnostic             = ',diagnostic
+          'Diagnostic              = ',diagnostic
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'NetCDF ImpExp Freq     = ',cdf_impexp_freq
+          'cdf_impexp_freq         = ',cdf_impexp_freq
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Cpl Hour               = ',cpl_hour
+          'cpl_hour                = ',cpl_hour
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Cpl Min                = ',cpl_min
+          'cpl_min                 = ',cpl_min
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Cpl Sec                = ',cpl_sec
+          'cpl_sec                 = ',cpl_sec
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,A))") trim(cname)//': ', &
-          'Base DTG               = ',base_dtg
+          'base_dtg                = ',base_dtg
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'HYCOM Archive Output   = ',hycom_arche_output
+          'hycom_arche_output      = ',hycom_arche_output
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'ESMF Export Output     = ',ocn_esmf_exp_output
+          'hyc_esmf_exp_output     = ',ocn_esmf_exp_output
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'ESMF Import Output     = ',ocn_esmf_imp_output
+          'hyc_esmf_imp_output     = ',ocn_esmf_imp_output
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,A))") trim(cname)//': ', &
-          'ImpExp Fields File     = ',ocn_impexp_file
+          'hyc_impexp_file         = ',ocn_impexp_file
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'Show MinMax            = ',show_minmax
+          'espc_show_impexp_minmax = ',show_minmax
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         value=import_setting
         write (logMsg, "(A,(A,A))") trim(cname)//': ', &
-          'Import Setting         = ',trim(value)
+          'import_setting          = ',trim(value)
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'Import Diagnostics     = ',import_diagnostics
+          'import_diagnostics      = ',import_diagnostics
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'Merge All Import       = ',merge_all_import
+          'merge_all_import        = ',merge_all_import
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,L1))") trim(cname)//': ', &
-          'Skip First Import      = ',skip_first_import
+          'skip_first_import       = ',skip_first_import
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,F0.1))") trim(cname)//': ', &
-          'Start DTG Since Epoch  = ',ocean_start_dtg
+          'ocean_start_dtg         = ',ocean_start_dtg
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Start Hour             = ',start_hour
+          'start_hour              = ',start_hour
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Start Min              = ',start_min
+          'start_min               = ',start_min
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'Start Sec              = ',start_sec
+          'start_sec               = ',start_sec
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'End Hour               = ',end_hour
+          'end_hour                = ',end_hour
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'End Min                = ',end_min
+          'end_min                 = ',end_min
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
-          'End Sec                = ',end_sec
+          'end_sec                 = ',end_sec
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        value=atm_model
+        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
+          'ATM_model               = ',trim(value)
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
+          'ScalarFieldName         = ',trim(scalar_field_name)
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'ScalarFieldCount        = ',scalar_field_count
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'ScalarFieldIdxGridNX    = ',scalar_field_idx_grid_nx
+        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
+        write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
+          'ScalarFieldIdxGridNY    = ',scalar_field_idx_grid_ny
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
       endif
 
@@ -1207,19 +1225,17 @@ module HYCOM_Mod
         if (isConnected) then
           if (lPet.eq.0) print *,"hycom, import field created, name=", &
             impFieldName(i)
-
           impField(i) = ESMF_FieldCreate(name=impFieldName(i), grid=gridIn, &
             typekind=ESMF_TYPEKIND_RX, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
-
           call ESMF_FieldFill(impField(i), dataFillScheme="const", &
             const1=fillValue, rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
-
+          ! realize field in import state
           call NUOPC_Realize(importState, field=impField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         else
-          if(import_setting.eq.IMPORT_ADAPTABLE) then
+          if(import_setting.eq.IMPORT_FLEXIBLE) then
             if (lPet.eq.0) print *,"hycom, import field disabled, name=", &
               impFieldName(i)
             impFieldEnable(i) = .false.
@@ -1251,67 +1267,45 @@ module HYCOM_Mod
           if (lPet.eq.0) print *,"hycom, export field created, name=", &
             expFieldName(i)
 
-          if ((trim(mediator_type) .eq. "cmeps") .and. &
-              (trim(expFieldName(i)) .eq. trim(scalar_field_name))) then
-              call SetScalarField(expField(i), rc)
-              if (ESMF_STDERRORCHECK(rc)) return
-          else
-!           exportable field:
+          if (expFieldName(i).eq.scalar_field_name) then
+            expField(i) = CreateScalarField(name=expFieldName(i), &
+              field_count=scalar_field_count, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            call SetScalarFieldValues(expField(i), &
+              vals=(/real(itdmx,ESMF_KIND_R8),real(jtdmx,ESMF_KIND_R8)/), &
+              idxs=(/scalar_field_idx_grid_nx,scalar_field_idx_grid_ny/), &
+              rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            scalar_field_id = i
+          elseif(expFieldName(i).eq.'mask') then
             expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
               typekind=ESMF_TYPEKIND_RX, rc=rc)
             if (ESMF_STDERRORCHECK(rc)) return
-
-            ! zero out
-            call ESMF_FieldFill(expField(i), dataFillScheme="const", const1=0.D0, rc=rc)
+            call SetMaskFieldValues(expField(i), grid=gridOut, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            mask_field_id = i
+          else
+            expField(i) = ESMF_FieldCreate(name=expFieldName(i), grid=gridOut, &
+              typekind=ESMF_TYPEKIND_RX, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            call ESMF_FieldFill(expField(i), dataFillScheme="const", &
+              const1=0.D0, rc=rc)
+            if (ESMF_STDERRORCHECK(rc)) return
+            call do_export(expField(i),expFieldName(i),rc=rc)
             if (ESMF_STDERRORCHECK(rc)) return
           end if
-
+          ! realize field in export state
           call NUOPC_Realize(exportState, field=expField(i), rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
-
-          if (expFieldName(i).eq."mask") then
-            nullify(msk_fptr)
-            nullify(fldmsk_fptr)
-            call ESMF_GridGetItem(gridOut, itemflag=ESMF_GRIDITEM_MASK, &
-              staggerLoc=ESMF_STAGGERLOC_CENTER, farrayPtr=msk_fptr, rc=rc)
-            if (ESMF_STDERRORCHECK(rc)) return
-            call ESMF_FieldGet(expField(i),farrayPtr=fldmsk_fptr,rc=rc)
-            if (ESMF_STDERRORCHECK(rc)) return
-            if (size(fldmsk_fptr).eq.size(msk_fptr)) then
-              fldmsk_fptr(:,:) = msk_fptr(:,:)
-            else
-              call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
-                msg="ERROR: Mask array sizes do not match.", &
-                CONTEXT, rcToReturn=rc)
-              return ! bail out
-            endif
-          endif
         else
           if (lPet.eq.0) print *,"hycom, export field disabled, name=", &
             expFieldName(i)
-
           expFieldEnable(i) = .false.
           call ESMF_StateRemove(exportState,(/expFieldName(i)/), &
             relaxedflag=.true., rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         endif
       endif
-    enddo
-
-    do i=1,numExpFields
-      if (trim(mediator_type) == "cmeps") then
-        if (expFieldEnable(i) .and. &
-           (trim(expFieldName(i)) .ne.trim(scalar_field_name)) .and. &
-           (trim(expFieldName(i)) .ne. "mask")) then
-          call do_export(i,expField(i),rc)
-          if (ESMF_STDERRORCHECK(rc)) return
-        end if
-      else
-        if (expFieldEnable(i)) then
-          call do_export(i,expField(i),rc)
-          if (ESMF_STDERRORCHECK(rc)) return
-        endif
-      end if
     enddo
 
     endtime=0
@@ -1326,19 +1320,6 @@ module HYCOM_Mod
     deallocate(tmp_e)
     deallocate(tmp_c)
 #endif
-
-    if (trim(mediator_type) == "cmeps") then
-      ! set scalar data in export state
-      if (len_trim(scalar_field_name) > 0) then
-        call State_SetScalar(dble(itdmx),scalar_field_idx_grid_nx, exportState, lPet, &
-          scalar_field_name, scalar_field_count, rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-
-        call State_SetScalar(dble(jtdmx),scalar_field_idx_grid_ny, exportState, lPet, &
-          scalar_field_name, scalar_field_count, rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-      endif
-    end if
 
     call hycom_couple_final(rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
@@ -1489,7 +1470,7 @@ module HYCOM_Mod
 !     forcing data is read
       do i=1,numImpFields
         if (impFieldEnable(i)) then
-          call do_import(i,impField(i),diagnostic,rc=rc)
+          call do_import(impField(i),impFieldName(i),diagnostic,rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         endif
       enddo
@@ -1571,18 +1552,15 @@ module HYCOM_Mod
 #endif
 
     do i=1,numExpFields
-      if (trim(mediator_type) == "cmeps") then
-        if (expFieldEnable(i) .and. &
-           (trim(expFieldName(i)) .ne. trim(scalar_field_name)) .and. &
-           (trim(expFieldName(i)) .ne. "mask")) then
-          call do_export(i,expField(i),rc)
+      if (expFieldEnable(i)) then
+        if (i.eq.scalar_field_id) then
+!         SetScalarFieldValues called during InitializeP2
+        elseif (i.eq.mask_field_id) then
+!         SetMaskFieldValues called during InitializeP2
+        else
+          call do_export(expField(i),expFieldName(i),rc=rc)
           if (ESMF_STDERRORCHECK(rc)) return
         end if
-      else
-        if (expFieldEnable(i)) then
-          call do_export(i,expField(i),rc)
-          if (ESMF_STDERRORCHECK(rc)) return
-        endif
       endif
     enddo
 
@@ -1716,57 +1694,93 @@ module HYCOM_Mod
 
   !-----------------------------------------------------------------------------
 
-  ! Set scalar data from state for a particula name
-  subroutine State_SetScalar(value, scalar_id, State, mytask, scalar_name, scalar_count,  rc)
-    real(ESMF_KIND_R8), intent(in)    :: value
-    integer,            intent(in)    :: scalar_id
-    type(ESMF_State),   intent(inout) :: State
-    integer,            intent(in)    :: mytask
-    character(len=*),   intent(in)    :: scalar_name
-    integer,            intent(in)    :: scalar_count
+  ! Set mask data for field
+  subroutine SetMaskFieldValues(field, grid, rc)
+    type(ESMF_Field),   intent(inout) :: field
+    type(ESMF_Grid),    intent(in)    :: grid
+    integer,            intent(inout) :: rc
+    ! local variables
+    character(len=*), parameter     :: rname="SetMaskFieldValues"
+    real(ESMF_KIND_R8), pointer     :: fldmsk_fptr(:,:)
+    integer(ESMF_KIND_I4), pointer  :: msk_fptr(:,:)
+
+    nullify(msk_fptr)
+    nullify(fldmsk_fptr)
+    call ESMF_GridGetItem(grid, itemflag=ESMF_GRIDITEM_MASK, &
+      staggerLoc=ESMF_STAGGERLOC_CENTER, farrayPtr=msk_fptr, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    call ESMF_FieldGet(field,farrayPtr=fldmsk_fptr,rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (size(fldmsk_fptr).eq.size(msk_fptr)) then
+      fldmsk_fptr(:,:) = msk_fptr(:,:)
+    else
+      call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
+        msg="ERROR: Mask array sizes do not match.", &
+        CONTEXT, rcToReturn=rc)
+      return ! bail out
+    endif
+
+  end subroutine SetMaskFieldValues
+
+  !-----------------------------------------------------------------------------
+
+  ! Set scalar data for field
+  subroutine SetScalarFieldValues(field, vals, idxs, rc)
+    type(ESMF_Field),   intent(inout) :: field
+    real(ESMF_KIND_R8), intent(in)    :: vals(:)
+    integer,            intent(in)    :: idxs(:)
     integer,            intent(inout) :: rc
 
     ! local variables
-    type(ESMF_Field)                :: field
+    integer                         :: ungriddedLBound(1)
+    integer                         :: ungriddedUBound(1)
+    integer                         :: i
     real(ESMF_KIND_R8), pointer     :: farrayptr(:,:)
-    character(len=*), parameter     :: subname='(HYCOM_cap:State_SetScalar)'
-    !--------------------------------------------------------
+    character(len=*), parameter     :: rname="SetScalarFieldValues"
 
     rc = ESMF_SUCCESS
 
-    call ESMF_StateGet(State, itemName=trim(scalar_name), field=field, rc=rc)
-    if (ESMF_STDERRORCHECK(rc)) return
-
-    if (mytask == 0) then
-      call ESMF_FieldGet(field, farrayPtr=farrayptr, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-
-      if (scalar_id < 0 .or. scalar_id > scalar_count) then
-        call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
-          msg=subname//": ERROR in scalar_id", &
-          line=__LINE__, file=__FILE__, rcToReturn=rc)
-        return
-      endif
-
-      farrayptr(scalar_id,1) = value
+    if (size(idxs).ne.size(vals)) then
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg=rname//": ERROR must provide scalar_field_idx for each value", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return
     endif
+    call ESMF_FieldGet(field, ungriddedLBound=ungriddedLBound, &
+      ungriddedUBound=ungriddedUBound, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    if (any(idxs(:).lt.ungriddedLBound(1)).or. &
+        any(idxs(:).gt.ungriddedUBound(1))) then
+      call ESMF_LogSetError(ESMF_RC_ARG_BAD, &
+        msg=rname//": ERROR scalar_field_idx outside scalar_field_count", &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return
+    endif
+    call ESMF_FieldGet(field, farrayPtr=farrayptr, rc=rc)
+    if (ESMF_STDERRORCHECK(rc)) return
+    do i=lbound(idxs,1), ubound(idxs,1)
+      farrayptr(idxs(i),1) = vals(i)
+    enddo
 
-  end subroutine State_SetScalar
+  end subroutine SetScalarFieldValues
 
-  subroutine SetScalarField(field, rc)
-    ! create a field with scalar data on the root pe
-    type(ESMF_Field), intent(inout) :: field
-    integer,          intent(inout) :: rc
+  !-----------------------------------------------------------------------------
+
+  ! create a field for scalar data
+  function CreateScalarField(name, field_count, rc)
+    type(ESMF_Field)         :: CreateScalarField
+    character(*), intent(in) :: name
+    integer, intent(in)      :: field_count
+    integer, intent(inout)   :: rc
 
     ! local variables
+    character(len=*), parameter     :: rname="CreateScalarField"
     type(ESMF_Distgrid) :: distgrid
     type(ESMF_Grid)     :: grid
-    character(len=*), parameter     :: subname='(HYCOM_cap:SetScalarField)'
-    !--------------------------------------------------------
 
     rc = ESMF_SUCCESS
 
-    ! create a DistGrid with a single index space element, which gets mapped onto DE 0.
+    ! create a DistGrid with a single index space element
     distgrid = ESMF_DistGridCreate(minIndex=(/1/), maxIndex=(/1/), rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
@@ -1774,17 +1788,20 @@ module HYCOM_Mod
     if (ESMF_STDERRORCHECK(rc)) return
 
     ! num of scalar values
-    field = ESMF_FieldCreate(name=trim(scalar_field_name), grid=grid, typekind=ESMF_TYPEKIND_R8, &
-         ungriddedLBound=(/1/), ungriddedUBound=(/scalar_field_count/), gridToFieldMap=(/2/), rc=rc)
+    CreateScalarField = ESMF_FieldCreate(name=trim(name), grid=grid, &
+      typekind=ESMF_TYPEKIND_R8, gridToFieldMap=(/2/), &
+      ungriddedLBound=(/1/), ungriddedUBound=(/field_count/), rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-  end subroutine SetScalarField
+  end function CreateScalarField
+
+  !-----------------------------------------------------------------------------
 
 #ifdef ESPC_COUPLE
-  subroutine do_export(k,field,rc)
+  subroutine do_export(field,fieldName,rc)
 !   arguments
-    integer, intent(in)             :: k
     type(ESMF_Field), intent(inout) :: field
+    character(*), intent(in)        :: fieldName
     integer, intent(out)            :: rc
 !   local variables
     character(32)               :: cname
@@ -1793,17 +1810,14 @@ module HYCOM_Mod
     real*8, allocatable         :: expData(:,:)
     real(ESMF_KIND_RX), pointer :: field_data(:,:)
     integer                     :: tlb(2), tub(2)
-    character(len=30)           :: fieldName
     integer                     :: status
 
     rc = ESMF_FAILURE
 
-    fieldName=expFieldName(k)
-
-    call ESMF_FieldGet(field,localDE,field_data,rc=rc)
+    call ESMF_FieldGet(field, localDe=localDe, farrayPtr=field_data, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-    call ESMF_FieldGetBounds(field, localDE=localDE,  &
+    call ESMF_FieldGetBounds(field, localDe=localDe, &
       totalLBound=tlb, totalUBound=tub, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return
@@ -1837,10 +1851,10 @@ module HYCOM_Mod
 
   !-----------------------------------------------------------------------------
 
-  subroutine do_import(k,field,diagnostic,rc)
+  subroutine do_import(field,fieldName,diagnostic,rc)
 !   arguments
-    integer, intent(in)          :: k
     type(ESMF_Field), intent(in) :: field
+    character(*), intent(in)     :: fieldName
     integer,intent(in)           :: diagnostic
     integer,intent(out)          :: rc
 !   local variables
@@ -1850,16 +1864,13 @@ module HYCOM_Mod
     real(ESMF_KIND_RX), pointer :: field_data(:,:)
     integer                     :: tlb(2), tub(2)
     integer                     :: status
-    character(len=30)           :: fieldName
     type(ESMF_Grid)             :: grid
     type(ESMF_Field)            :: dbgField
 
-    fieldName=impFieldName(k)
-
-    call ESMF_FieldGet(field,localDE,field_data,rc=rc)
+    call ESMF_FieldGet(field, localDe=localDe, farrayPtr=field_data, rc=rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-    call ESMF_FieldGetBounds(field, localDE=localDE,  &
+    call ESMF_FieldGetBounds(field, localDe=localDe,  &
       totalLBound=tlb, totalUBound=tub, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, CONTEXT, &
       rcToReturn=rc)) return

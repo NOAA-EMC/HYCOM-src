@@ -179,14 +179,6 @@
              ocn_mask_init
 #endif
 
-! CMEPS -- add
-      character(len=128) :: scalar_field_name = ''
-      integer :: scalar_field_count = 0
-      integer :: scalar_field_idx_grid_nx = 0
-      integer :: scalar_field_idx_grid_ny = 0
-      character(len=128) :: atm_model_type = 'none'
-      character(len=128) :: mediator_type = 'none'
-
       contains
 
 #if defined(USE_ESMF4)
