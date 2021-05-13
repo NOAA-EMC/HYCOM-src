@@ -1,3 +1,6 @@
+#if defined (USE_NUOPC_CESMBETA) || (ESPC_COUPLE)
+#define USE_NUOPC_GENERIC 1
+#endif
 #if defined(ROW_LAND)
 #define SEA_P .true.
 #define SEA_U .true.
@@ -14,6 +17,10 @@
       subroutine icloan(m,n)
       use mod_xc         ! HYCOM communication interface
       use mod_cb_arrays  ! HYCOM saved arrays
+#if defined (USE_NUOPC_GENERIC)
+      use mod_import     ! HYCOM merge import
+#endif
+
       implicit none
 !
       integer m,n
@@ -322,6 +329,9 @@
                 endif
                 rair   = pair/(rgas*(tzero+airt))
                 snsibl = csubp*rair*wind*csice*(temice(i,j)-airt)
+#if defined (USE_NUOPC_GENERIC)
+                if (cpl_merge) snsibl=hycom_imp_mrg_sensflx(i,j,snsibl)
+#endif
               else
                 snsibl = 0.0 !already in total flux (i.e. in radfl)
               endif
