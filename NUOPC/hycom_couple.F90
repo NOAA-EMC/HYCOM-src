@@ -924,9 +924,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          imp_mslprs(i,j,l0)=impData(i+i0,j+j0)
+          if (impData(i+i0,j+j0).ne.fill_value) then
+            imp_mslprs(i,j,l0)=impData(i+i0,j+j0)-prsbas
+          else
+            imp_mslprs(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
-          imp_mslprs(i,j,l0)=1000.0
+          imp_mslprs(i,j,l0)=101000.0-prsbas
         endif
       enddo
       enddo
@@ -1220,7 +1224,7 @@ module hycom_couple
 
 !   -----------------
 !   calculate imp_radflx
-    if (lwflag.eq.2) then
+    if (lwflag.eq.0 .or. lwflag.eq.2) then
       if((cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd).and. &
          (cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd)) then
         if (mnproc.eq.1) print *, rname//" calculating radflx..."
@@ -1244,7 +1248,7 @@ module hycom_couple
 #endif
       call xctilr(imp_radflx,1,1,nbdy,nbdy,halo_ps)
     else
-      if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
+      if (mnproc.eq.1) print *,"error - lwflag .ne. 0 or 2"
       call xcstop('('//rname//')')
              stop '('//rname//')'
     endif
