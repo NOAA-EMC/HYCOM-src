@@ -778,6 +778,7 @@ module HYCOM_Mod
 
     do i=1,numImpFields
       if(import_setting.eq.IMPORT_UNCOUPLED) then
+        ! disable field if import_setting=UNCOUPLED
         impFieldEnable(i)=.false.
       else
         if (impFieldEnable(i)) then
@@ -1236,6 +1237,7 @@ module HYCOM_Mod
           if (ESMF_STDERRORCHECK(rc)) return
         else
           if(import_setting.eq.IMPORT_FLEXIBLE) then
+            ! remove if field is not connected and import_setting=FLEXIBLE
             if (lPet.eq.0) print *,"hycom, import field disabled, name=", &
               impFieldName(i)
             impFieldEnable(i) = .false.
@@ -1243,6 +1245,7 @@ module HYCOM_Mod
               relaxedflag=.true., rc=rc)
             if (ESMF_STDERRORCHECK(rc)) return
           else
+            ! fail if field is not connected and import_setting=REQUIRED
             call ESMF_LogSetError(ESMF_RC_NOT_VALID, &
               msg="ERROR: hycom, import field required: "//trim(impFieldName(i)), &
               CONTEXT, rcToReturn=rc)

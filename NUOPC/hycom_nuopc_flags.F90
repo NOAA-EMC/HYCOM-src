@@ -31,10 +31,10 @@ module hycom_nuopc_flags
   end type import_flag
 
   type(import_flag), parameter :: &
-    IMPORT_ERROR     = import_flag(-1), &
-    IMPORT_REQUIRED  = import_flag(0),  &
-    IMPORT_UNCOUPLED = import_flag(1),  &
-    IMPORT_FLEXIBLE  = import_flag(2)
+    IMPORT_ERROR     = import_flag(-1), & ! Import setting is invalid
+    IMPORT_REQUIRED  = import_flag(0),  & ! Fails if a import is not connected
+    IMPORT_UNCOUPLED = import_flag(1),  & ! Removes all import fields
+    IMPORT_FLEXIBLE  = import_flag(2)     ! Remove import if not connected
 
   type model_flag
     sequence
@@ -43,9 +43,9 @@ module hycom_nuopc_flags
   end type model_flag
 
   type(model_flag), parameter :: &
-    MODEL_ERROR   = model_flag(-1), &
-    MODEL_DEFAULT = model_flag(0),  &
-    MODEL_DATM    = model_flag(1)
+    MODEL_ERROR   = model_flag(-1), & ! Model setting is invalid
+    MODEL_DEFAULT = model_flag(0),  & ! Use default import fields
+    MODEL_DATM    = model_flag(1)     ! Use default import fields for DATM
 
 !===============================================================================
 ! public
