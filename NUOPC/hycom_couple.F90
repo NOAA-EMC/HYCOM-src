@@ -88,8 +88,6 @@ module hycom_couple
 
     rc = 0 ! success
 
-    if (mnproc.eq.1) print *, rname//" start..."
-
 !   grid size
     cpldom%idim_size=itdm
     cpldom%jdim_size=jtdm
@@ -209,8 +207,6 @@ module hycom_couple
     cpl_siu=.false.
     cpl_siv=.false.
 
-    if (mnproc.eq.1) print *, rname//" end..."
-
   end subroutine hycom_couple_init
 
   !-----------------------------------------------------------------------------
@@ -223,8 +219,6 @@ module hycom_couple
     character(*), parameter :: rname="set_hycom_import_flag"
 
     rc = 0 ! success
-
-    if (mnproc.eq.1) print *, rname//" start...,name=", fieldName
 
 !   set couple flags based on fieldnames
     if (fieldName.eq.'taux10') then
@@ -271,7 +265,9 @@ module hycom_couple
       cpl_precip=.true.
     elseif (fieldName.eq.'gt') then
       cpl_surtmp=.true.
-      cpl_seatmp=.true.
+      if (sstflg.ne.3) then
+        cpl_seatmp=.true.
+      endif
     elseif (fieldName.eq.'sbhflx') then
       cpl_sbhflx=.true.
     elseif (fieldName.eq.'sensflx') then
@@ -319,8 +315,6 @@ module hycom_couple
       stop '('//rname//')'
     endif !fieldName
 
-    if (mnproc.eq.1) print *, rname//" end..."
-
   end subroutine set_hycom_import_flag
 
   !-----------------------------------------------------------------------------
@@ -334,8 +328,6 @@ module hycom_couple
     real, allocatable       :: data_tmp(:,:)
 
     rc = 0 ! success
-
-    if (mnproc.eq.1) print *, rname//" start..."
 
 !   diagnostic output
     if (show_minmax) then
@@ -356,8 +348,6 @@ module hycom_couple
 !     deallocate memory
       if (allocated(data_tmp)) deallocate(data_tmp)
     endif !show_minmax
-
-    if (mnproc.eq.1) print *, rname//" end..."
 
   end subroutine hycom_couple_check_deb
 
@@ -382,8 +372,6 @@ module hycom_couple
 !   real                    :: mgrid(ii,jj)
 
     rc = 0 ! success
-
-    if (mnproc.eq.1) print *, rname//" start...,name=", fieldName
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
@@ -470,8 +458,6 @@ module hycom_couple
       if (allocated(tmx)) deallocate(tmx)
     endif !show_minmax
 
-    if (mnproc.eq.1) print *, rname//" end..."
-
   end subroutine export_from_hycom_deb
 
   !-----------------------------------------------------------------------------
@@ -502,8 +488,6 @@ module hycom_couple
 !   integer                 :: k
 
     rc = 0 ! success
-
-    if (mnproc.eq.1) print *, rname//" start,name=...", fieldName
 
 !   (1+i0,ii+i0) could be the subset of (tlb(1),tub(1))
 !   (1+j0,jja+j0) == (tlb(2),tub(2))
@@ -924,9 +908,13 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          imp_mslprs(i,j,l0)=impData(i+i0,j+j0)
+          if (impData(i+i0,j+j0).ne.fill_value) then
+            imp_mslprs(i,j,l0)=impData(i+i0,j+j0)-prsbas
+          else
+            imp_mslprs(i,j,l0)=impData(i+i0,j+j0)
+          endif
         else
-          imp_mslprs(i,j,l0)=1000.0
+          imp_mslprs(i,j,l0)=101000.0-prsbas
         endif
       enddo
       enddo
@@ -1185,8 +1173,6 @@ module hycom_couple
       if (allocated(fld_msk)) deallocate(fld_msk)
     endif !show_minmax
 
-    if (mnproc.eq.1) print *, rname//" end..."
-
   end subroutine import_to_hycom_deb
 
   !-----------------------------------------------------------------------------
@@ -1200,8 +1186,6 @@ module hycom_couple
     integer                 :: i, j, m, n, jja
 
     rc = 0 ! success
-
-    if (mnproc.eq.1) print *, rname//" start..."
 
 #if defined(ARCTIC)
 !   arctic (tripole) domain, top row is replicated (ignore it)
@@ -1220,7 +1204,7 @@ module hycom_couple
 
 !   -----------------
 !   calculate imp_radflx
-    if (lwflag.eq.2) then
+    if (lwflag.eq.0 .or. lwflag.eq.2) then
       if((cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd).and. &
          (cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd)) then
         if (mnproc.eq.1) print *, rname//" calculating radflx..."
@@ -1244,7 +1228,7 @@ module hycom_couple
 #endif
       call xctilr(imp_radflx,1,1,nbdy,nbdy,halo_ps)
     else
-      if (mnproc.eq.1) print *,"error - lwflag .ne. 2"
+      if (mnproc.eq.1) print *,"error - lwflag .ne. 0 or 2"
       call xcstop('('//rname//')')
              stop '('//rname//')'
     endif
@@ -1272,8 +1256,6 @@ module hycom_couple
       calc_wndspd=.false.
     endif
 
-    if (mnproc.eq.1) print *, rname//" end..."
-
   end subroutine ocn_import_forcing
 
   !-----------------------------------------------------------------------------
@@ -1286,8 +1268,6 @@ module hycom_couple
 
     rc = 0 ! success
 
-    if (mnproc.eq.1) print *, rname//" start..."
-
 !   deallocate memory
     if (allocated(cpldom%deBList)) deallocate(cpldom%deBList)
     if (allocated(cpldom%lon_p)) deallocate(cpldom%lon_p)
@@ -1298,8 +1278,6 @@ module hycom_couple
     if (allocated(cpldom%lat_q)) deallocate(cpldom%lat_q)
     if (allocated(cpldom%area_q)) deallocate(cpldom%area_q)
     if (allocated(cpldom%mask_q)) deallocate(cpldom%mask_q)
-
-    if (mnproc.eq.1) print *, rname//" end..."
 
   end subroutine hycom_couple_final
 !===============================================================================

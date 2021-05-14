@@ -197,6 +197,7 @@ HYCOM_OceanComp.o: export_from_hycom_tiled.o \
 hycom_couple.o: export_from_hycom_tiled.o \
  hycom_read_latlon.o $(MODEL_MODS)
 export_from_hycom_tiled.o: $(MODEL_MODS)
+read_impexp_config_mod.o: hycom_nuopc_flags.o
 
 ifdef ESPC_OCN
 ocean_mod.mod: HYCOM_OceanComp.o
