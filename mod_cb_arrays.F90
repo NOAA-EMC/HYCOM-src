@@ -926,8 +926,9 @@
       logical cpl_implicit
 
 #  if defined(RELO)
+      real, target, allocatable,dimension (:,:) :: &
+       imp_merge
       real, target, allocatable,dimension (:,:,:) :: &
-       imp_merge, &
        imp_taux, imp_tauy, imp_taue, imp_taun, &
        imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
@@ -936,8 +937,9 @@
        imp_orivers,imp_irivers
 
 #  else
+      real, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy) :: &
+       imp_merge
       real, target, dimension (1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2) :: &
-       imp_merge, &
        imp_taux, imp_tauy, imp_taue, imp_taun, &
        imp_wndspx, imp_wndspy, imp_wndspd, imp_ustara, &
        imp_airtmp, imp_vapmix, imp_swflx, imp_lwdflx, imp_lwuflx, &
@@ -1754,7 +1756,7 @@
 #if defined (USE_NUOPC_GENERIC)
 #  if defined(RELO)
       allocate( &
-                  imp_merge(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
+                  imp_merge(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy),   &
                    imp_taux(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_tauy(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &
                    imp_taue(1-nbdy:idm+nbdy,1-nbdy:jdm+nbdy,2), &

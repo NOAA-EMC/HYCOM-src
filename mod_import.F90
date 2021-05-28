@@ -50,7 +50,7 @@
         mrg_cnt=0
         do j=1, jja
         do i=1, ii
-          if (imp_merge(i,j,l0).ne.0) mrg_cnt=mrg_cnt+1
+          if (imp_merge(i,j).ne.0) mrg_cnt=mrg_cnt+1
         enddo
         enddo
         call xcsumr(mrg_cnt,1)
@@ -109,120 +109,120 @@
           if(cpl_taux) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                taux(i,j,:) = imp_taux(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                taux(i,j,:) = imp_taux(i,j,1)
             enddo
             enddo
           endif
           if(cpl_tauy) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                tauy(i,j,:) = imp_tauy(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                tauy(i,j,:) = imp_tauy(i,j,1)
             enddo
             enddo
           endif
           if(cpl_wndspd.or.calc_wndspd) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                wndspd(i,j,:) = imp_wndspd(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                wndspd(i,j,:) = imp_wndspd(i,j,1)
             enddo
             enddo
           endif
           if(cpl_ustara) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                ustara(i,j,:) = imp_ustara(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                ustara(i,j,:) = imp_ustara(i,j,1)
             enddo
             enddo
           endif
           if(cpl_airtmp) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                airtmp(i,j,:) = imp_airtmp(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                airtmp(i,j,:) = imp_airtmp(i,j,1)
             enddo
             enddo
           endif
           if(cpl_vapmix) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                vapmix(i,j,:) = imp_vapmix(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                vapmix(i,j,:) = imp_vapmix(i,j,1)
             enddo
             enddo
           endif
           if(cpl_precip) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                precip(i,j,:) = imp_precip(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                precip(i,j,:) = imp_precip(i,j,1)
             enddo
             enddo
           endif
           if(cpl_surtmp) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                surtmp(i,j,:) = imp_surtmp(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                surtmp(i,j,:) = imp_surtmp(i,j,1)
             enddo
             enddo
           endif
           if(cpl_seatmp) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                seatmp(i,j,:) = imp_seatmp(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                seatmp(i,j,:) = imp_seatmp(i,j,1)
             enddo
             enddo
           endif
           if(cpl_swflx_net.or.cpl_swflx_net2down.or.cpl_swflxd) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                swflx(i,j,:) = imp_swflx(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                swflx(i,j,:) = imp_swflx(i,j,1)
             enddo
             enddo
           endif
           if(cpl_lwflx_net.or.cpl_lwflx_net2down.or.cpl_lwflxd) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                lwflx(i,j,:) = imp_lwdflx(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                lwflx(i,j,:) = imp_lwdflx(i,j,1)
             enddo
             enddo
           endif
           if(cpl_u10) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                wndspx(i,j,:) = imp_wndspx(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                wndspx(i,j,:) = imp_wndspx(i,j,1)
             enddo
             enddo
           endif
           if(cpl_v10) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                wndspy(i,j,:) = imp_wndspy(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                wndspy(i,j,:) = imp_wndspy(i,j,1)
             enddo
             enddo
           endif
           if(cpl_mslprs) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                mslprs(i,j,:) = imp_mslprs(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                mslprs(i,j,:) = imp_mslprs(i,j,1)
             enddo
             enddo
           endif
           if(calc_radflx) then
             do j=tlb(2), tub(2)
             do i=tlb(1), tub(1)
-              if (imp_merge(i,j,l0).ne.0) &
-                radflx(i,j,:) = imp_radflx(i,j,l0)
+              if (imp_merge(i,j).ne.0) &
+                radflx(i,j,:) = imp_radflx(i,j,1)
             enddo
             enddo
           endif
@@ -245,7 +245,7 @@
 !       copy import data to sea ice
         do j=1, jja
         do i=1, ii
-          if (imp_merge(i,j,l0).ne.0) then
+          if (imp_merge(i,j).ne.0) then
             if (ishlf(i,j).eq.1) then !standard ocean point
               if ((iceflg.ge.2).and.(icmflg.ne.3)) then
                 covice(i,j)=sic_import(i,j) !Sea Ice Concentration
@@ -353,7 +353,7 @@
 !       copy back from si_ to _import for archive_ice
         do j=1, jja
         do i=1, ii
-          if (imp_merge(i,j,l0).ne.0) then
+          if (imp_merge(i,j).ne.0) then
             if (si_c(i,j).gt.0.0) then
               siu_import(i,j)=si_u(i,j) !Sea Ice X-Velocity
               siv_import(i,j)=si_v(i,j) !Sea Ice Y-Velocity
@@ -378,8 +378,8 @@
       character(*),parameter :: rname = 'hycom_imp_mrg_latflx'
 
 #if defined (USE_NUOPC_GENERIC)
-        if (cpl_latflx.and.(imp_merge(i,j,l0).ne.0)) then
-          hycom_imp_mrg_latflx=imp_latflx(i,j,l0)
+        if (cpl_latflx.and.(imp_merge(i,j).ne.0)) then
+          hycom_imp_mrg_latflx=imp_latflx(i,j,1)
         else
           hycom_imp_mrg_latflx=fval
         endif
@@ -400,8 +400,8 @@
       character(*),parameter :: rname = 'hycom_imp_mrg_sensflx'
 
 #if defined (USE_NUOPC_GENERIC)
-        if (cpl_sensflx.and.(imp_merge(i,j,l0).ne.0)) then
-          hycom_imp_mrg_sensflx=imp_sensflx(i,j,l0)
+        if (cpl_sensflx.and.(imp_merge(i,j).ne.0)) then
+          hycom_imp_mrg_sensflx=imp_sensflx(i,j,1)
         else
           hycom_imp_mrg_sensflx=fval
         endif
