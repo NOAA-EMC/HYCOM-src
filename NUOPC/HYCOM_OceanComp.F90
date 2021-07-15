@@ -125,7 +125,6 @@ module HYCOM_Mod
   integer           :: scalar_field_count       = 0
   integer           :: scalar_field_idx_grid_nx = 0
   integer           :: scalar_field_idx_grid_ny = 0
-  type(model_flag)  :: atm_model                = MODEL_DEFAULT
 #ifdef ESPC_TIMER
   real(kind=ESMF_KIND_R8) :: timer_beg, timer_end
   real(kind=ESMF_KIND_R8) :: espc_timer(6)
@@ -229,9 +228,7 @@ module HYCOM_Mod
     call HYCOM_AttributeGet(rc)
     if (ESMF_STDERRORCHECK(rc)) return
 
-    ! Set import/export field list
-    call set_impexp_fields(atm_model=atm_model, &
-      cpl_scalars=(scalar_field_count.gt.0))
+    call set_impexp_fields(cpl_scalars=(scalar_field_count.gt.0))
 
     contains ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -521,17 +518,6 @@ module HYCOM_Mod
       end_sec = ESMF_UtilString2Int(value, rc=rc)
       if (ESMF_STDERRORCHECK(rc)) return
 
-      ! get atmosphere model type
-      call NUOPC_CompAttributeGet(model, name="ATM_model", &
-        isPresent=isPresent, isSet=isSet, rc=rc)
-      if (ESMF_STDERRORCHECK(rc)) return
-      if (isPresent .and. isSet) then
-        call NUOPC_CompAttributeGet(model, name="ATM_model", &
-          value=value, rc=rc)
-        if (ESMF_STDERRORCHECK(rc)) return
-        atm_model=trim(value)
-      end if
-
       ! get scalar field name
       call NUOPC_CompAttributeGet(model, name="ScalarFieldName", &
         isPresent=isPresent, isSet=isSet, rc=rc)
@@ -665,10 +651,6 @@ module HYCOM_Mod
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,I0))") trim(cname)//': ', &
           'end_sec                 = ',end_sec
-        call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
-        value=atm_model
-        write (logMsg, "(A,(A,A))") trim(cname)//': ', &
-          'ATM_model               = ',trim(value)
         call ESMF_LogWrite(trim(logMsg),ESMF_LOGMSG_INFO)
         write (logMsg, "(A,(A,A))") trim(cname)//': ', &
           'ScalarFieldName         = ',trim(scalar_field_name)

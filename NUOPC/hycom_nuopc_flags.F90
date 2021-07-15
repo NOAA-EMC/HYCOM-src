@@ -36,17 +36,6 @@ module hycom_nuopc_flags
     IMPORT_UNCOUPLED = import_flag(1),  & ! Removes all import fields
     IMPORT_FLEXIBLE  = import_flag(2)     ! Remove import if not connected
 
-  type model_flag
-    sequence
-    private
-      integer :: mdl
-  end type model_flag
-
-  type(model_flag), parameter :: &
-    MODEL_ERROR   = model_flag(-1), & ! Model setting is invalid
-    MODEL_DEFAULT = model_flag(0),  & ! Use default import fields
-    MODEL_DATM    = model_flag(1)     ! Use default import fields for DATM
-
 !===============================================================================
 ! public
 !===============================================================================
@@ -55,23 +44,16 @@ module hycom_nuopc_flags
   public IMPORT_REQUIRED
   public IMPORT_UNCOUPLED
   public IMPORT_FLEXIBLE
-  public model_flag
-  public MODEL_ERROR
-  public MODEL_DEFAULT
-  public MODEL_DATM
 
   public operator(==), assignment(=)
 
   interface operator (==)
     module procedure import_flag_eq
-    module procedure model_flag_eq
   end interface
 
   interface assignment (=)
     module procedure import_flag_toString
     module procedure import_flag_frString
-    module procedure model_flag_toString
-    module procedure model_flag_frString
   end interface
 
   !-----------------------------------------------------------------------------
@@ -122,45 +104,6 @@ module hycom_nuopc_flags
   end subroutine import_flag_frString
 
   !-----------------------------------------------------------------------------
-
-  function model_flag_eq(val1, val2)
-    logical model_flag_eq
-    type(model_flag), intent(in) :: val1, val2
-    model_flag_eq = (val1%mdl == val2%mdl)
-  end function model_flag_eq
-
-  !-----------------------------------------------------------------------------
-
-  subroutine model_flag_toString(string, val)
-    character(len=*), intent(out) :: string
-    type(model_flag), intent(in) :: val
-    if (val == MODEL_DEFAULT) then
-      write(string,'(a)') 'DEFAULT'
-    elseif (val == MODEL_DATM) then
-      write(string,'(a)') 'DATM'
-    else
-      write(string,'(a)') 'ERROR'
-    endif
-  end subroutine model_flag_toString
-
-  !-----------------------------------------------------------------------------
-
-  subroutine model_flag_frString(val, string)
-    type(model_flag), intent(out) :: val
-    character(len=*), intent(in) :: string
-    character(len=16) :: ustring
-    integer :: rc
-    ustring = ESMF_UtilStringUpperCase(string, rc=rc)
-    if (rc .ne. ESMF_SUCCESS) then
-      val = MODEL_ERROR
-    elseif (ustring .eq. 'DEFAULT') then
-      val = MODEL_DEFAULT
-    elseif (ustring .eq. 'DATM') then
-      val = MODEL_DATM
-    else
-      val = MODEL_ERROR
-    endif
-  end subroutine model_flag_frString
 
 !===============================================================================
 end module hycom_nuopc_flags
