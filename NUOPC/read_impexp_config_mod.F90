@@ -164,7 +164,7 @@ module read_impexp_config_mod
 
 !   read export fields from config
     attrFF = NUOPC_FreeFormatCreate(fieldsConfig, &
-      label="ocn_export_fields", rc=rc)
+      label="ocn_export_fields::", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
       msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
     call NUOPC_FreeFormatGet(attrFF, lineCount=lineCount, rc=rc)
@@ -216,7 +216,7 @@ module read_impexp_config_mod
 
 !   read import fields from config
     attrFF = NUOPC_FreeFormatCreate(fieldsConfig, &
-      label="ocn_import_fields", rc=rc)
+      label="ocn_import_fields::", rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, &
       msg=ESMF_LOGERR_PASSTHRU, CONTEXT)) return
     call NUOPC_FreeFormatGet(attrFF, lineCount=lineCount, rc=rc)
