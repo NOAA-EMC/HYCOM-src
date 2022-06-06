@@ -1679,6 +1679,8 @@
         enddo !i
         enddo !j
 !
+      dpmx(:,:) = 2.*cutoff  !otherwise ii(jj)+1 to i(j)dm are NaN
+!
       do 9 k=1,kk
 !
 ! --- store total (barotropic plus baroclinic) flow at old and mid time in
@@ -4021,6 +4023,8 @@
           vtotm(i,j)=0.0
         enddo !i
       enddo !j
+!
+      dpmx(:,:) = 2.*cutoff  !otherwise ii(jj)+1 to i(j)dm are NaN
 !
       do 9 k=1,kk
 !
