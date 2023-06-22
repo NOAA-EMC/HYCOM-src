@@ -892,7 +892,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          imp_sensflx(i,j,1)=impData(i+i0,j+j0)
+          imp_sensflx(i,j,1)=-impData(i+i0,j+j0)
         else
           imp_sensflx(i,j,1)=0.0
         endif
