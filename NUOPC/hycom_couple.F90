@@ -538,10 +538,7 @@ module hycom_couple
       do i=1, ii
 !       imp_taux(i,j,1)=mgrid(i,j)
         if (ishlf(i,j).eq.1) then
-!         The momentum flux received from CMEPS/FV3ATM are from sea to air (friction to air).
-!         However, the momentum flux expected and used in HYCOM should be air to sea (wind stress).
-!         Thus, we need to reverse the sign when retrieving taux/y.
-          imp_taux(i,j,1)=-impData(i+i0,j+j0)
+          imp_taux(i,j,1)=impData(i+i0,j+j0)
         else
           imp_taux(i,j,1)=0.0
         endif
@@ -557,10 +554,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-!         The momentum flux received from CMEPS/FV3ATM are from sea to air (friction to air).
-!         However, the momentum flux expected and used in HYCOM should be air to sea (wind stress).
-!         Thus, we need to reverse the sign when retrieving taux/y.
-          imp_tauy(i,j,1)=-impData(i+i0,j+j0)
+          imp_tauy(i,j,1)=impData(i+i0,j+j0)
           if (impData(i+i0,j+j0).ne.fill_value) then
 !           rotate taux and tauy to (x,y)ward
 !           assumes rotation only needed for impData
@@ -882,7 +876,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          imp_latflx(i,j,1)=impData(i+i0,j+j0)
+          imp_latflx(i,j,1)=-impData(i+i0,j+j0)
         else
           imp_latflx(i,j,1)=0.0
         endif
@@ -898,7 +892,7 @@ module hycom_couple
       do j=1, jja
       do i=1, ii
         if (ishlf(i,j).eq.1) then
-          imp_sensflx(i,j,1)=impData(i+i0,j+j0)
+          imp_sensflx(i,j,1)=-impData(i+i0,j+j0)
         else
           imp_sensflx(i,j,1)=0.0
         endif
@@ -1289,4 +1283,3 @@ module hycom_couple
 !===============================================================================
 end module hycom_couple
 !===============================================================================
-
